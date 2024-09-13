@@ -28,8 +28,6 @@ Or if you need a production build:
 $ npm run build
 ```
 
-// export NODE_OPTIONS=--openssl-legacy-provider
-
 ## Usage
 
 Load **scripts** inside `dist` folder into your page.

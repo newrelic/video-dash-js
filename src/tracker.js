@@ -4,11 +4,6 @@ import { version } from "../package.json";
 export default class DashTracker extends nrvideo.VideoTracker {
   constructor(player, options) {
     super(player, options);
-
-    // console.log("player", this.player);
-    // player.on("manifestLoaded", (e) => {
-    //   console.log("manifestLoaded", e.data);
-    // });
   }
 
   setPlayer(player, tag) {
@@ -22,12 +17,6 @@ export default class DashTracker extends nrvideo.VideoTracker {
 
   getTrackerVersion() {
     return version;
-  }
-
-  getTitle() {
-    //https://github.com/Dash-Industry-Forum/dash.js/issues/2961
-    // https://reference.dashif.org/dash.js/nightly/samples/getting-started/listening-to-events.html
-    /* Not has any method for getting title */
   }
 
   isLive() {
@@ -112,15 +101,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     return this.player.getAutoPlay();
   }
 
-  isFullscreen() {
-    // dash js does not have a built-in method to check if the player is in fullscreen mode
-    // we can do by using jabvaSrcipt method:
-    // console.log("full screen", this._fullScreen);
-  }
-
   registerListeners() {
-    //nrvideo.Log.debugCommonVideoEvents(this.tag);
-
     nrvideo.Log.debugCommonVideoEvents(this.player, [
       null,
       "streamInitialized",

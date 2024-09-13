@@ -1,5 +1,5 @@
 import DashTracker from "../tracker";
-import * as nrvideo from "newrelic-video-core";
+import { version } from "../../package.json";
 
 const player = {
   addEventListener: jest.fn(),
@@ -13,7 +13,6 @@ const player = {
   on: jest.fn(),
   getSource: jest.fn(),
   getCurrentTrackFor: jest.fn(),
-  version: "0.2.0",
   setPlayer: jest.fn(),
 };
 
@@ -60,16 +59,20 @@ const videoBitrateList = [
   },
 ];
 
-const tracker = new DashTracker(player, {});
+describe("Dash Tracker Attributes For Specified Event ", () => {
+  let tracker;
 
-describe("Dash Tracker  name, version, src", () => {
+  beforeEach(() => {
+    tracker = new DashTracker(player, {});
+  });
+
   it("should return the tracker name as dash", () => {
     //assertion
     expect(tracker.getTrackerName()).toBe("dash");
   });
 
-  it("should return version 0.2.0", () => {
-    expect(tracker.getTrackerVersion()).toBe("0.2.0");
+  it("should return pacjage version 0.2.0", () => {
+    expect(tracker.getTrackerVersion()).toBe(version);
   });
 
   it("should return source of player", () => {
@@ -77,9 +80,7 @@ describe("Dash Tracker  name, version, src", () => {
     player.getSource = jest.fn().mockReturnValue(url);
     expect(tracker.getSrc()).toBe(url);
   });
-});
 
-describe("Dash Tracker Live Functionality", () => {
   it("isLive should return true if player is dynamic", () => {
     player.isDynamic = jest.fn().mockReturnValue(true);
     expect(tracker.isLive()).toBe(true);
@@ -89,18 +90,14 @@ describe("Dash Tracker Live Functionality", () => {
     player.isDynamic = jest.fn().mockReturnValue(false);
     expect(tracker.isLive()).toBe(false);
   });
-});
 
-describe("setPlayer", () => {
   it("should call setPlayer method of VideoTracker", () => {
     const tag = " ";
     tracker.setPlayer = jest.fn();
     tracker.setPlayer(player, tag);
     expect(tracker.setPlayer).toHaveBeenCalledWith(player, tag);
   });
-});
 
-describe("getDuration, playRate", () => {
   it("should return the duration of the player", () => {
     const mpd = 60;
     tracker.getDuration = player.duration.mockReturnValue(mpd);
@@ -112,9 +109,39 @@ describe("getDuration, playRate", () => {
     tracker.getPlayrate = player.getPlaybackRate.mockReturnValue(rate);
     expect(tracker.getPlayrate()).toBe(rate);
   });
+
+  it("should return the mute status of the player", () => {
+    const isMutedValue = true;
+    tracker.player.isMuted = jest.fn().mockReturnValue(isMutedValue);
+    expect(tracker.isMuted()).toBe(isMutedValue);
+  });
+
+  it("should return the version of the player", () => {
+    const version = "1.0.0";
+    tracker.player.getVersion = jest.fn().mockReturnValue(version);
+    expect(tracker.getPlayerVersion()).toBe(version);
+  });
+
+  it("should return the preload value of the player", () => {
+    const preloadValue = "auto";
+    tracker.player.preload = jest.fn().mockReturnValue(preloadValue);
+    expect(tracker.getPreload()).toBe(preloadValue);
+  });
+
+  it("should return the autoplay value of the player", () => {
+    const autoplayValue = true;
+    tracker.player.getAutoPlay = jest.fn().mockReturnValue(autoplayValue);
+    expect(tracker.isAutoplayed()).toBe(autoplayValue);
+  });
 });
 
 describe("getTrack", () => {
+  let tracker;
+
+  beforeEach(() => {
+    tracker = new DashTracker(player, {});
+  });
+
   const audio = {
     lang: "en",
   };
@@ -131,7 +158,13 @@ describe("getTrack", () => {
   });
 });
 
-describe("getDashBitrate", () => {
+describe("Bitrate Properties for Dash.js", () => {
+  let tracker;
+
+  beforeEach(() => {
+    tracker = new DashTracker(player, {});
+  });
+
   it("should return the bitrate info for the specified media type", () => {
     const videoBitrate = 2; // Assuming videoBitrate is 2 for testing purposes
     const expectedBitrateInfo = {
@@ -205,9 +238,42 @@ describe("getDashBitrate", () => {
       expect(result).toBe(currentBitrate.height);
     });
   });
+
+  describe("getRenditionName", () => {
+    it("should return the label of the current video rendition", () => {
+      const currentBitrate = {
+        bitrate: 987654,
+        height: 360,
+        mediaType: "video",
+        qualityIndex: 2,
+        scanType: null,
+        width: 854,
+        label: "360p",
+      };
+      tracker.getDashBitrate = jest.fn().mockReturnValue(currentBitrate);
+
+      const result = tracker.getRenditionName();
+
+      expect(result).toBe(currentBitrate.label);
+    });
+
+    it("should return undefined if the current video rendition is not available", () => {
+      tracker.getDashBitrate = jest.fn().mockReturnValue(undefined);
+
+      const result = tracker.getRenditionName();
+
+      expect(result).toBeUndefined();
+    });
+  });
 });
 
 describe("registerListeners", () => {
+  let tracker;
+
+  beforeEach(() => {
+    tracker = new DashTracker(player, {});
+  });
+
   it("should register event listeners for various video events", () => {
     const mockOnReady = jest.fn();
     const mockOnDownload = jest.fn();
@@ -294,6 +360,12 @@ describe("registerListeners", () => {
 });
 
 describe("unregisterListeners", () => {
+  let tracker;
+
+  beforeEach(() => {
+    tracker = new DashTracker(player, {});
+  });
+
   it("should unregister event listeners for various video events", () => {
     const mockOff = jest.fn();
 
@@ -348,33 +420,9 @@ describe("unregisterListeners", () => {
       tracker.onBufferingLoaded
     );
     expect(tracker.player.off).toHaveBeenCalledWith(
-      "trackChangeRendered",
+      "qualityChangeRendered",
       tracker.onAdaptation
     );
-  });
-});
-
-describe("getPlayerVersion", () => {
-  it("should return the version of the player", () => {
-    const version = "1.0.0";
-    tracker.player.getVersion = jest.fn().mockReturnValue(version);
-    expect(tracker.getPlayerVersion()).toBe(version);
-  });
-});
-
-describe("getPreload", () => {
-  it("should return the preload value of the player", () => {
-    const preloadValue = "auto";
-    tracker.player.preload = jest.fn().mockReturnValue(preloadValue);
-    expect(tracker.getPreload()).toBe(preloadValue);
-  });
-});
-
-describe("isAutoplayed", () => {
-  it("should return the autoplay value of the player", () => {
-    const autoplayValue = true;
-    tracker.player.getAutoPlay = jest.fn().mockReturnValue(autoplayValue);
-    expect(tracker.isAutoplayed()).toBe(autoplayValue);
   });
 });
 
@@ -392,6 +440,13 @@ describe("Tracker Event Handlers", () => {
     tracker.sendResume = jest.fn();
     tracker.sendStart = jest.fn();
     tracker.sendRenditionChanged = jest.fn();
+    tracker.sendBufferStart = jest.fn();
+    tracker.sendBufferEnd = jest.fn();
+    tracker.sendPause = jest.fn();
+    tracker.sendSeekStart = jest.fn();
+    tracker.sendSeekEnd = jest.fn();
+    tracker.sendError = jest.fn();
+    tracker.sendEnd = jest.fn();
   });
 
   it("should call sendPlayerReady on onReady", () => {
@@ -422,5 +477,41 @@ describe("Tracker Event Handlers", () => {
     const event = { type: "adaptation" };
     tracker.onAdaptation(event);
     expect(tracker.sendRenditionChanged).toHaveBeenCalled();
+  });
+
+  it("should call sendBufferStart on onBufferingStalled", () => {
+    tracker.onBufferingStalled();
+    expect(tracker.sendBufferStart).toHaveBeenCalled();
+  });
+
+  it("should call sendBufferEnd on onBufferingLoaded", () => {
+    tracker.onBufferingLoaded();
+    expect(tracker.sendBufferEnd).toHaveBeenCalled();
+  });
+
+  it("should call sendPause on onPause", () => {
+    tracker.onPause();
+    expect(tracker.sendPause).toHaveBeenCalled();
+  });
+
+  it("should call sendSeekStart on onSeeking", () => {
+    tracker.onSeeking();
+    expect(tracker.sendSeekStart).toHaveBeenCalled();
+  });
+
+  it("should call sendSeekEnd on onSeeked", () => {
+    tracker.onSeeked();
+    expect(tracker.sendSeekEnd).toHaveBeenCalled();
+  });
+
+  it("should call sendError on onError", () => {
+    const event = { detail: "error" };
+    tracker.onError(event);
+    expect(tracker.sendError).toHaveBeenCalledWith(event.detail);
+  });
+
+  it("should call sendEnd on onEnded", () => {
+    tracker.onEnded();
+    expect(tracker.sendEnd).toHaveBeenCalled();
   });
 });
