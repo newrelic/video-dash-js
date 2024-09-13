@@ -3,24 +3,24 @@ const myPlayer = document.querySelector("#myPlayer");
 // Create a new instance of the player
 const player = new dashjs.MediaPlayer().create();
 player.events = dashjs.MediaPlayer.events;
-// for showing attributes of player: "https://reference.dashif.org/dash.js/v4.4.0/samples/dash-if-reference-player/index.html"
-
-// follow streaming protocol for high quality video to deliverd over internet.
-// breaking a video down into smaller chunks and encoding each chunk at diffrent quality levels.
 
 const url = "https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd";
-//for live stream:
-// const url =
-//   "https://refapp.hbbtv.org/videos/multiperiod_v8.php?drm=0&advert=1&emsg=0&video=v1,v2,v3&audiolang=eng,fin&sublang=eng,fin,swe&mup=2&spd=8";
 
-// generic sample:
-// "https://storage.googleapis.com/shaka-demo-assets/sintel-mp4-only/dash.mpd";
-//"https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd",
-// const url =
-// "https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.mpd";
+/*
+  for live stream:
+ const url = "https://refapp.hbbtv.org/videos/multiperiod_v8.php?drm=0&advert=1&emsg=0&video=v1,v2,v3&audiolang=eng,fin&sublang=eng,fin,swe&mup=2&spd=8";
+*/
+
+/* generic sample mpd file:
+
+ "https://storage.googleapis.com/shaka-demo-assets/sintel-mp4-only/dash.mpd";
+"https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd",
+const url = "https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.mpd";
+
+*/
 
 try {
-  player.initialize(myPlayer, url, false);
+  player.initialize(myPlayer, url, true);
 
   // intializing the tracker and adding events to browser agent
   const mediaEvents = nrvideo.Core.addTracker(new nrvideo.DashTracker(player));
@@ -71,7 +71,6 @@ try {
   player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, function () {
     // console.log("Quality change completed");
     loader.style.display = "none"; // Hide loader
-    //document.querySelector("#video-container").style.display = "block"; // Show video
   });
 } catch (error) {
   nrvideo.Core.sendError({ message: error.message });

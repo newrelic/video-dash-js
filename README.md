@@ -37,7 +37,6 @@ Load **scripts** inside `dist` folder into your page.
 ```
 
 ```javascript
-// var player = new shaka.Player(...)
 nrvideo.Core.addTracker(new nrvideo.DashTracker(player));
 ```
 
@@ -49,7 +48,7 @@ We encourage you to bring your experiences and questions to the [Explorers Hub](
 
 ## Contributing
 
-We encourage your contributions to improve New Relic Shaka Tracker! Keep in mind when you submit your pull request, you'll need to sign the CLA via the click-through using CLA-Assistant. You only have to sign the CLA one time per project. If you have any questions, or to execute our corporate CLA, required if your contribution is on behalf of a company, please drop us an email at opensource@newrelic.com.
+We encourage your contributions to improve New Relic Dash Tracker! Keep in mind when you submit your pull request, you'll need to sign the CLA via the click-through using CLA-Assistant. You only have to sign the CLA one time per project. If you have any questions, or to execute our corporate CLA, required if your contribution is on behalf of a company, please drop us an email at opensource@newrelic.com.
 
 **A note about vulnerabilities**
 
