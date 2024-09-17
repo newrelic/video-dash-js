@@ -219,7 +219,8 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   onError(e) {
-    this.sendError(e.detail);
+    console.log("Error: ", e?.error?.message);
+    this.sendError(e.message);
   }
 
   onEnded() {
