@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" href="../dash-control.css" />
+    <title>Dash Ad Demo</title>
+
+    <!-- newrelic browser agent. REMEMBER TO REPLACE THIS SCRIPT WITH YOUR OWN BROWSER AGENT -->
+    <!-- <script src="../agent.js"></script> -->
+
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+  </head>
+  <body>
+    <h1>Dash Player with Ad Demo</h1>
+    <div id="videoContainer">
+      <video
+        id="myPlayer"
+        crossorigin="anonymous"
+        controls
+        class="myPlayer"
+        autoplay="true"
+      ></video>
+      <button id="play-button">Play</button>
+      <div id="ad-container"></div>
+    </div>
+    <script src="https://imasdk.googleapis.com/js/sdkloader/ima3.js"></script>
+    <script src="./dash-add.js"></script>
+  </body>
+</html>
