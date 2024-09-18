@@ -51,8 +51,6 @@ try {
   document.querySelector("#qualityLevels").addEventListener("change", (e) => {
     const selectedQuality = e.target.value;
 
-    // document.querySelector("#video-container").style.display = "none"; // Hide video
-
     loader.style.display = "block"; // Show loader
 
     if (selectedQuality === "auto") {
@@ -69,7 +67,6 @@ try {
 
   // Hide loader when quality change completes
   player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, function () {
-    // console.log("Quality change completed");
     loader.style.display = "none"; // Hide loader
   });
 } catch (error) {

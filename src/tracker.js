@@ -2,10 +2,6 @@ import * as nrvideo from "newrelic-video-core";
 import { version } from "../package.json";
 
 export default class DashTracker extends nrvideo.VideoTracker {
-  constructor(player, options) {
-    super(player, options);
-  }
-
   setPlayer(player, tag) {
     if (tag && player.getVideoElement) tag = player.getVideoElement();
     nrvideo.VideoTracker.prototype.setPlayer.call(this, player, tag);
@@ -36,7 +32,6 @@ export default class DashTracker extends nrvideo.VideoTracker {
     return this.player.duration();
   }
 
-  //implementing getTrack() method for dash.js
   getTrack() {
     const track = this.player.getCurrentTrackFor("audio");
     return track;
@@ -44,8 +39,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
 
   getLanguage() {
     const activeTrack = this.getTrack();
-    return activeTrack ? activeTrack.lang : "";
-    //return this.getTrack().lang;
+    return activeTrack.lang ?? "";
   }
 
   getDashBitrate(type) {
@@ -72,13 +66,11 @@ export default class DashTracker extends nrvideo.VideoTracker {
 
   /** Override to return renidtion actual width (before re-scaling). */
   getRenditionWidth() {
-    //return this.player.getVideoElement().clientWidth;
     return this.getDashBitrate("video")?.width;
   }
 
   /** Override to return renidtion actual height (before re-scaling). */
   getRenditionHeight() {
-    //return this.player.getVideoElement().clientHeight;
     return this.getDashBitrate("video")?.height;
   }
 
@@ -87,17 +79,14 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   getPreload() {
-    /* Content Is Preloaded */
     return this.player.preload();
   }
 
   isMuted() {
-    /* Content Is Muted */
     return this.player.isMuted();
   }
 
   isAutoplayed() {
-    /* Content Is Autoplayed */
     return this.player.getAutoPlay();
   }
 
@@ -119,44 +108,19 @@ export default class DashTracker extends nrvideo.VideoTracker {
       "qualityChangeRendered",
     ]);
 
-    /*        Stream Period is activate ON_READY Event       */
     this.tag.on("streamInitialized", this.onReady.bind(this));
-
-    /*       Playback meta data loaded Download Event       */
     this.tag.on("playbackMetaDataLoaded", this.onDownload.bind(this));
-
-    /*      Playback loaded data Download Event       */
     this.tag.on("playbackLoadedData", this.onDownload.bind(this));
-
-    /*       Playback can play Event  CONTENT_REQUEST, CONTENT_START     */
     this.tag.on("canPlay", this.onPlay.bind(this));
-
-    /*          CONTENT_RESUME     */
     this.tag.on("playbackPlaying", this.onPlaying.bind(this));
-
-    /*          CONTENT_PAUSE     */
     this.tag.on("playbackPaused", this.onPause.bind(this));
-
-    /*          CONTENT_SEEK_START     */
     this.tag.on("playbackSeeking", this.onSeeking.bind(this));
-
-    /*          CONTENT_SEEK_END     */
     this.tag.on("playbackSeeked", this.onSeeked.bind(this));
-
-    /*          CONTENT_ERROR     */
     this.tag.on("error", this.onError.bind(this));
     this.tag.on("playbackError", this.onError.bind(this));
-
-    /*          CONTENT_END     */
     this.tag.on("playbackEnded", this.onEnded.bind(this));
-
-    /*     CONTENT_BUFFER_START     */
     this.player.on("bufferStalled", this.onBufferingStalled.bind(this));
-
-    /*     CONTENT_BUFFER_END     */
     this.player.on("bufferLoaded", this.onBufferingLoaded.bind(this));
-
-    /*     CONTENT_RENDITION_CHANGED     */
     this.player.on("qualityChangeRendered", this.onAdaptation.bind(this));
   }
 
@@ -194,7 +158,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.sendStart();
   }
 
-  onAdaptation(e) {
+  onAdaptation() {
     this.sendRenditionChanged();
   }
 
@@ -219,7 +183,6 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   onError(e) {
-    console.log("Error: ", e?.error?.message);
     this.sendError(e.message);
   }
 

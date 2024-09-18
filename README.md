@@ -59,3 +59,10 @@ If you believe you have found a security vulnerability in this project or any of
 ## License
 
 New Relic Dash Tracker is licensed under the [Apache 2.0](http://apache.org/licenses/LICENSE-2.0.txt) License.
+
+## Release
+
+- Create a PR.
+- Once approved, Update the package version according to the semver rules.
+- Update the CHANGELOG in the repo (all web repos have a changelog file).
+- Create a github tag with the version.
