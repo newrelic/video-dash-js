@@ -3,7 +3,6 @@ import { version } from "../package.json";
 
 export default class DashTracker extends nrvideo.VideoTracker {
   setPlayer(player, tag) {
-    if (tag && player.getVideoElement) tag = player.getVideoElement();
     nrvideo.VideoTracker.prototype.setPlayer.call(this, player, tag);
   }
 
@@ -59,10 +58,13 @@ export default class DashTracker extends nrvideo.VideoTracker {
     return currentBitrate?.bitrate;
   }
 
+  /* 
+  Not able to find any field to show renditionName
   getRenditionName() {
     let qlty = this.getDashBitrate("video");
     return qlty?.label;
   }
+  */
 
   /** Override to return renidtion actual width (before re-scaling). */
   getRenditionWidth() {
@@ -108,34 +110,34 @@ export default class DashTracker extends nrvideo.VideoTracker {
       "qualityChangeRendered",
     ]);
 
-    this.tag.on("streamInitialized", this.onReady.bind(this));
-    this.tag.on("playbackMetaDataLoaded", this.onDownload.bind(this));
-    this.tag.on("playbackLoadedData", this.onDownload.bind(this));
-    this.tag.on("canPlay", this.onPlay.bind(this));
-    this.tag.on("playbackPlaying", this.onPlaying.bind(this));
-    this.tag.on("playbackPaused", this.onPause.bind(this));
-    this.tag.on("playbackSeeking", this.onSeeking.bind(this));
-    this.tag.on("playbackSeeked", this.onSeeked.bind(this));
-    this.tag.on("error", this.onError.bind(this));
-    this.tag.on("playbackError", this.onError.bind(this));
-    this.tag.on("playbackEnded", this.onEnded.bind(this));
+    this.player.on("streamInitialized", this.onReady.bind(this));
+    this.player.on("playbackMetaDataLoaded", this.onDownload.bind(this));
+    this.player.on("playbackLoadedData", this.onDownload.bind(this));
+    this.player.on("canPlay", this.onPlay.bind(this));
+    this.player.on("playbackPlaying", this.onPlaying.bind(this));
+    this.player.on("playbackPaused", this.onPause.bind(this));
+    this.player.on("playbackSeeking", this.onSeeking.bind(this));
+    this.player.on("playbackSeeked", this.onSeeked.bind(this));
+    this.player.on("error", this.onError.bind(this));
+    this.player.on("playbackError", this.onError.bind(this));
+    this.player.on("playbackEnded", this.onEnded.bind(this));
     this.player.on("bufferStalled", this.onBufferingStalled.bind(this));
     this.player.on("bufferLoaded", this.onBufferingLoaded.bind(this));
     this.player.on("qualityChangeRendered", this.onAdaptation.bind(this));
   }
 
   unregisterListeners() {
-    this.tag.off("streamInitialized", this.onReady);
-    this.tag.off("playbackMetaDataLoaded", this.onDownload);
-    this.tag.off("playbackLoadedData", this.onDownload);
-    this.tag.off("canPlay", this.onPlay);
-    this.tag.off("playbackPlaying", this.onPlaying);
-    this.tag.off("playbackPaused", this.onPause);
-    this.tag.off("playbackSeeking", this.onSeeking);
-    this.tag.off("playbackSeeked", this.onSeeked);
-    this.tag.off("playbackError", this.onError);
-    this.tag.off("error", this.onError);
-    this.tag.off("playbackEnded", this.onEnded);
+    this.player.off("streamInitialized", this.onReady);
+    this.player.off("playbackMetaDataLoaded", this.onDownload);
+    this.player.off("playbackLoadedData", this.onDownload);
+    this.player.off("canPlay", this.onPlay);
+    this.player.off("playbackPlaying", this.onPlaying);
+    this.player.off("playbackPaused", this.onPause);
+    this.player.off("playbackSeeking", this.onSeeking);
+    this.player.off("playbackSeeked", this.onSeeked);
+    this.player.off("playbackError", this.onError);
+    this.player.off("error", this.onError);
+    this.player.off("playbackEnded", this.onEnded);
     this.player.off("bufferStalled", this.onBufferingStalled);
     this.player.off("bufferLoaded", this.onBufferingLoaded);
     this.player.off("qualityChangeRendered", this.onAdaptation);
