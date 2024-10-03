@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="./dash-control.css" />
+    <title>Dash js Video Player with quality selection</title>
+
+    <!-- newrelic browser agent. REMEMBER TO REPLACE THIS SCRIPT WITH YOUR OWN BROWSER AGENT -->
+    <script src="agent.js"></script>
+
+    <!-- Dash Js Official CDN -->
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+
+    <!-- New Relic Video Dash Tracker  -->
+    <script src="../dist/newrelic-video-dash.min.js"></script>
+  </head>
+  <body>
+    <div class="main">
+      <h1 class="title">Welcome to Dash Js Video Player</h1>
+      <div id="videoContainer">
+        <div id="loader"></div>
+
+        <div id="video-container">
+          <video
+            id="myPlayer"
+            crossorigin="anonymous"
+            controls
+            class="myPlayer"
+          ></video>
+          <div>
+            <label for="qualityLevels" class="options">
+              <select id="qualityLevels" class="qualityLevels"></select>
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="./dash-control.js"></script>
+  </body>
+</html>

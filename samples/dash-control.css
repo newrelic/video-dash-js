@@ -1,0 +1,91 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&display=swap");
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+.main {
+  background-color: #010d15;
+  width: 100%;
+  height: 100vh;
+  position: relative;
+  font-family: "Roboto Condensed", sans-serif;
+  color: white;
+}
+
+.title {
+  color: white;
+  padding: 2% 35%;
+  font-size: 140%;
+}
+
+#videoContainer {
+  width: 90%;
+  height: 70%;
+  margin: 3% auto;
+  position: relative;
+}
+
+.events {
+  margin: 2%;
+  padding: 4% 2%;
+  width: 88%;
+  height: 20%;
+}
+
+.event-name {
+  background-color: white;
+  color: #010d15;
+  padding: 2%;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+#quailtySelector {
+  margin: 10px 0;
+}
+
+.myPlayer {
+  width: 90%;
+  height: 70%;
+  border-radius: 2%;
+}
+
+.qualityLevels {
+  background-color: orangered;
+  color: white;
+  padding: 0.5%;
+  border: 2px solid orangered;
+}
+
+#loader {
+  display: none;
+  position: absolute; /* Change to absolute positioning */
+  left: 40%; /* Center horizontally */
+  top: 25%; /* Center vertically */
+  transform: translate(-50%, -50%); /* Adjust for centering */
+  border: 10px solid #f3f3f3;
+  border-radius: 50%;
+  border-top: 10px solid #010d15;
+  width: 40px;
+  height: 40px;
+  animation: spin 2s linear infinite;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.options {
+  position: absolute;
+  top: 2%;
+  right: 12%;
+  cursor: pointer;
+}
