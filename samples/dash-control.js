@@ -1,7 +1,9 @@
 const myPlayer = document.querySelector("#myPlayer");
 
 // Create a new instance of the player
+
 const player = new dashjs.MediaPlayer().create();
+
 player.events = dashjs.MediaPlayer.events;
 
 const url = "https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd";
@@ -23,10 +25,13 @@ try {
   player.initialize(myPlayer, url, true);
 
   // intializing the tracker and adding events to browser agent
-  const mediaEvents = nrvideo.Core.addTracker(new nrvideo.DashTracker(player));
+  nrvideo.Core.addTracker(new nrvideo.DashTracker(player));
+
+  console.log("Dash js player got initialized");
 
   //poulate quailty levels dropdown
-  player.on("streamInitialized", function () {
+  player.on("streamInitialized", function (e) {
+    console.log("streamInitialized", e);
     const bitrates = player.getBitrateInfoListFor("video");
     const qualitySelector = document.querySelector("#qualityLevels");
 
