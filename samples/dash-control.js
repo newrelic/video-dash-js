@@ -1,4 +1,4 @@
-const myPlayer = document.querySelector("#myPlayer");
+const myPlayer = document.querySelector('#myPlayer');
 
 // Create a new instance of the player
 
@@ -6,7 +6,7 @@ const player = new dashjs.MediaPlayer().create();
 
 player.events = dashjs.MediaPlayer.events;
 
-const url = "https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd";
+const url = 'https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd';
 
 /*
   for live stream:
@@ -25,25 +25,23 @@ try {
   player.initialize(myPlayer, url, true);
 
   // intializing the tracker and adding events to browser agent
-  nrvideo.Core.addTracker(new nrvideo.DashTracker(player));
-
-  console.log("Dash js player got initialized");
+  //nrvideo.Core.addTracker(new nrvideo.DashTracker(player));
 
   //poulate quailty levels dropdown
-  player.on("streamInitialized", function (e) {
-    console.log("streamInitialized", e);
-    const bitrates = player.getBitrateInfoListFor("video");
-    const qualitySelector = document.querySelector("#qualityLevels");
+  player.on('streamInitialized', function (e) {
+    console.log('streamInitialized', e);
+    const bitrates = player.getBitrateInfoListFor('video');
+    const qualitySelector = document.querySelector('#qualityLevels');
 
     // Add 'auto' option
-    const autoOption = document.createElement("option");
-    autoOption.value = "auto";
-    autoOption.text = "Auto";
+    const autoOption = document.createElement('option');
+    autoOption.value = 'auto';
+    autoOption.text = 'Auto';
     qualitySelector.appendChild(autoOption);
 
     // Add bitrate options
     bitrates.forEach((level, index) => {
-      const option = document.createElement("option");
+      const option = document.createElement('option');
       option.value = index; // Use index to set quality level
       option.text = `${level.height}p (${Math.round(
         level.bitrate / 1000
@@ -53,12 +51,12 @@ try {
   });
 
   // Change video quality based on user selection
-  document.querySelector("#qualityLevels").addEventListener("change", (e) => {
+  document.querySelector('#qualityLevels').addEventListener('change', (e) => {
     const selectedQuality = e.target.value;
 
-    loader.style.display = "block"; // Show loader
+    loader.style.display = 'block'; // Show loader
 
-    if (selectedQuality === "auto") {
+    if (selectedQuality === 'auto') {
       player.updateSettings({
         streaming: { abr: { autoSwitchBitrate: { video: true } } },
       });
@@ -66,13 +64,13 @@ try {
       player.updateSettings({
         streaming: { abr: { autoSwitchBitrate: { video: false } } },
       });
-      player.setQualityFor("video", parseInt(selectedQuality, 10));
+      player.setQualityFor('video', parseInt(selectedQuality, 10));
     }
   });
 
   // Hide loader when quality change completes
   player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, function () {
-    loader.style.display = "none"; // Hide loader
+    loader.style.display = 'none'; // Hide loader
   });
 } catch (error) {
   nrvideo.Core.sendError({ message: error.message });

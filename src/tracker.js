@@ -2,6 +2,9 @@ import * as nrvideo from 'newrelic-video-core';
 import { version } from '../package.json';
 
 export default class DashTracker extends nrvideo.VideoTracker {
+  constructor(player, tag) {
+    super(player, tag);
+  }
   setPlayer(player, tag) {
     nrvideo.VideoTracker.prototype.setPlayer.call(this, player, tag);
   }
@@ -64,8 +67,13 @@ export default class DashTracker extends nrvideo.VideoTracker {
       For video and audio types the ABR rules update this value before every new download  
       unless autoSwitchBitrate is set to fasle
     */
-    const videoBitrate = this.player.getQualityFor(type);
 
+    const videoBitrate = this.player.getQualityFor(type);
+    console.log(
+      'videoBitrate',
+      videoBitrate,
+      this.player.getBitrateInfoListFor(type)
+    );
     return this.player.getBitrateInfoListFor(type)[videoBitrate];
   }
 
@@ -127,6 +135,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     ]);
 
     this.player.on('streamInitialized', this.onReady.bind(this));
+    this.player.on('streamInitiali', this.onReady.bind(this));
     this.player.on('playbackMetaDataLoaded', this.onDownload.bind(this));
     this.player.on('playbackLoadedData', this.onDownload.bind(this));
     this.player.on('canPlay', this.onPlay.bind(this));
