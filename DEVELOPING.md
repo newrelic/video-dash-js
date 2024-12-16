@@ -4,10 +4,6 @@
 
 New Relic video tracking for Dash Player.
 
-# Requirements
-
-This Video monitor solutions works on top of New Relic's Browser Agent.
-
 ## Requirements
 
 This video monitor solutions works on top of New Relic's **Browser Agent**.
