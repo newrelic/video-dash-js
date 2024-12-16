@@ -63,7 +63,7 @@ tracker.sendCustom('CUSTOM_ACTION', 'Custom Time', {
 
 ## Data Model
 
-To understand which actions and attributes are captured and emitted by The JW Player under different event types go [here](https://discuss.newrelic.com)
+To understand which actions and attributes are captured and emitted by The JW Player under different event types go DataModel.md
 
 ## Support
 
