@@ -43,3 +43,10 @@ Load **scripts** inside `dist` folder into your page.
 ```javascript
 nrvideo.Core.addTracker(new nrvideo.DashTracker(player));
 ```
+
+## Release
+
+- Create a PR.
+- Once approved, Update the package version according to the semver rules.
+- Update the CHANGELOG in the repo (all web repos have a changelog file).
+- Create a github tag with the version.

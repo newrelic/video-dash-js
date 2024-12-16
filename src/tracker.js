@@ -2,9 +2,6 @@ import * as nrvideo from 'newrelic-video-core';
 import { version } from '../package.json';
 
 export default class DashTracker extends nrvideo.VideoTracker {
-  constructor(player, tag) {
-    super(player, tag);
-  }
   setPlayer(player, tag) {
     nrvideo.VideoTracker.prototype.setPlayer.call(this, player, tag);
   }
@@ -69,11 +66,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     */
 
     const videoBitrate = this.player.getQualityFor(type);
-    console.log(
-      'videoBitrate',
-      videoBitrate,
-      this.player.getBitrateInfoListFor(type)
-    );
+
     return this.player.getBitrateInfoListFor(type)[videoBitrate];
   }
 

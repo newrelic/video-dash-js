@@ -24,8 +24,16 @@ const url = "https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e8
 try {
   player.initialize(myPlayer, url, true);
 
-  // intializing the tracker and adding events to browser agent
-  //nrvideo.Core.addTracker(new nrvideo.DashTracker(player));
+  //console.log('Dash Tracker', new nrvideo.DashTracker(player));
+  const tracker = new nrvideo.DashTracker(player);
+
+  nrvideo.Core.addTracker(tracker);
+
+  // Send custom action
+  tracker.sendCustom('CUSTOM_ACTION', 'Custom Time', {
+    test1: 'value1',
+    test2: 'value2',
+  });
 
   //poulate quailty levels dropdown
   player.on('streamInitialized', function (e) {
