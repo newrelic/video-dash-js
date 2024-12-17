@@ -55,7 +55,7 @@ const tracker = new nrvideo.DashTracker(player);
 
 nrvideo.Core.addTracker(tracker);
 
-tracker.sendCustom('CUSTOM_ACTION', 'Custom Time', {
+tracker.sendCustom('CUSTOM_ACTION', 'state time', {
   test1: 'value1',
   test2: 'value2',
 });
