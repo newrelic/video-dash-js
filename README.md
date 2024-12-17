@@ -63,7 +63,7 @@ tracker.sendCustom('CUSTOM_ACTION', 'Custom Time', {
 
 ## Data Model
 
-To understand which actions and attributes are captured and emitted by the Dash Player under different event types, see [DataModel.md](./DataModel.md).
+To understand which actions and attributes are captured and emitted by the Dash Player under different event types, see [DataModel.md](./DATAMODEL.md).
 
 ## Support
 
