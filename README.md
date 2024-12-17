@@ -8,7 +8,7 @@ The New Relic Dash Tracker enhances your media applications by tracking video ev
 - New Relic Dash tracker auto-detects events emitted by Dash Player.
 - Ensure that the **Browser agent** is successfully instrumented before deploying the media tracker.
 - For questions and feedback on this package, please visit the [Explorer's Hub](https://discuss.newrelic.com), New Relic's community support forum.
-- Looking to contribute to the Player Name agent code base? See [DEVELOPING.md](https://link-to-your-developing-md-file) for instructions on building and testing the browser agent library, and Contributors.
+- Looking to contribute to the Player Name agent code base? See [DEVELOPING.md](./DEVELOPING.md) for instructions on building and testing the browser agent library, and Contributors.
 
 ## Adding The Dash Tracker To Your Project
 
@@ -63,13 +63,13 @@ tracker.sendCustom('CUSTOM_ACTION', 'Custom Time', {
 
 ## Data Model
 
-To understand which actions and attributes are captured and emitted by The JW Player under different event types go DataModel.md
+To understand which actions and attributes are captured and emitted by the Dash Player under different event types go DataModel.md
 
 ## Support
 
-New Relic hosts and moderates an online forum where customers can interact with New Relic employees as well as other customers to get help and share best practices. Like all official New Relic open source projects, there's a related Community topic in the New Relic [Explorers Hub](https://discuss.newrelic.com).
+New Relic hosts and moderates an online forum where customers can interact with New Relic employees as well as other customers to get help and share best practices. Like all official New Relic open source projects, there's a related Community topic in the New Relic [Explorer's Hub](https://discuss.newrelic.com).
 
-We encourage you to bring your experiences and questions to the [Explorers Hub](https://discuss.newrelic.com) where our community members collaborate on solutions and new ideas.
+We encourage you to bring your experiences and questions to the [Explorer's Hub](https://discuss.newrelic.com) where our community members collaborate on solutions and new ideas.
 
 ## Contributing
 
