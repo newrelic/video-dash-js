@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "test": "jest --coverage",
-    "build": "webpack --mode -production",
+    "build": "webpack --mode production",
     "build:dev": "webpack --mode development",
     "watch": "webpack  --progress --color --watch",
     "watch:dev": "webpack --progress --color --watch --mode development",
