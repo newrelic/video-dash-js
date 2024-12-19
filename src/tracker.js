@@ -84,6 +84,10 @@ export default class DashTracker extends nrvideo.VideoTracker {
     return this.player.preload();
   }
 
+  getPlayhead() {
+    return this.player.time() * 1000; // in milliseconds
+  }
+
   isMuted() {
     return this.player.isMuted();
   }
