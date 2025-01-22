@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## [3.0.0] - 2024/01/22
+
+- Updated the Dash.js Player to support new event types: VideoAction, VideoAdAction, VideoErrorAction, and VideoCustomAction.
+
 ## [0.2.0] - 2024/12/02
 
 ### Update

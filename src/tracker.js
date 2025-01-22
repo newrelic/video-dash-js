@@ -42,6 +42,10 @@ export default class DashTracker extends nrvideo.VideoTracker {
     return this.player.getPlaybackRate();
   }
 
+  getPlayhead() {
+    return this.player.time() * 1000; // in milliseconds
+  }
+
   getDuration() {
     // Returns the duration of the MPD in seconds
     return this.player.duration();
@@ -203,7 +207,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   onError(e) {
-    this.sendError(e.error.message);
+    this.sendError({ errorCode: e.error.code, errorMessage: e.error.message });
   }
 
   onEnded() {

@@ -24,16 +24,55 @@ const url = "https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e8
 try {
   player.initialize(myPlayer, url, true);
 
+  //simulation of conentError
+  // setTimeout(() => {
+  //   player.initialize(
+  //     myPlayer,
+  //     'https://bitmovin-a.akamaihd.net/content/sintel/sintell.mpd',
+  //     true
+  //   );
+  // }, 7000);
+
+  // setTimeout(() => {
+  //   player.initialize(
+  //     myPlayer,
+  //     'https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd',
+  //     true
+  //   );
+  // }, 14000);
+
+  // setTimeout(() => {
+  //   player.initialize(
+  //     myPlayer,
+  //     'https://bitmovin-a.akamaihd.net/content/sintel/sintell.mpd',
+  //     true
+  //   );
+
+  //   console.log('executed!');
+  // }, 41000);
+
+  // setTimeout(() => {
+  //   player.initialize(
+  //     myPlayer,
+  //     'https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd',
+  //     true
+  //   );
+
+  //   console.log('executed!');
+  // }, 50000);
+
   //console.log('Dash Tracker', new nrvideo.DashTracker(player));
   const tracker = new nrvideo.DashTracker(player);
 
   nrvideo.Core.addTracker(tracker);
+  tracker.setUserId('nr-user-avinash');
 
   // Send custom action
-  tracker.sendCustom('CUSTOM_ACTION', 'Custom Time', {
-    test1: 'value1',
-    test2: 'value2',
-  });
+
+  // tracker.sendCustom('CUSTOM_ACTION', 'Custom Time', {
+  //   test1: 'value1',
+  //   test2: 'value2',
+  // });
 
   //poulate quailty levels dropdown
   player.on('streamInitialized', function (e) {
