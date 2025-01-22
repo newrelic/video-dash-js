@@ -52,13 +52,21 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   getTrack() {
-    const track = this.player.getCurrentTrackFor('audio');
-    return track;
+    try {
+      const track = this.player?.getCurrentTrackFor('audio');
+      return track;
+    } catch (error) {
+      /* do nothing */
+    }
   }
 
   getLanguage() {
-    const activeTrack = this.getTrack();
-    return activeTrack.lang ?? '';
+    try {
+      const activeTrack = this.getTrack();
+      return activeTrack.lang ?? '';
+    } catch (error) {
+      /* do nothing */
+    }
   }
 
   getDashBitrate(type) {
