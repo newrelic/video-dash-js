@@ -20,7 +20,7 @@
   "author": "Malay Chandan",
   "license": "MIT",
   "dependencies": {
-    "newrelic-video-core": "github:newrelic/video-core-js#develop"
+    "newrelic-video-core": "github:newrelic/video-core-js#stable"
   },
   "devDependencies": {
     "@babel/cli": "^7.25.6",
