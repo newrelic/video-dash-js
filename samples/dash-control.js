@@ -7,6 +7,7 @@ const player = new dashjs.MediaPlayer().create();
 player.events = dashjs.MediaPlayer.events;
 
 const url = 'https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd';
+//const url = 'https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd';
 
 /*
   for live stream:
