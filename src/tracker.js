@@ -140,7 +140,6 @@ export default class DashTracker extends nrvideo.VideoTracker {
     ]);
 
     this.player.on('streamInitialized', this.onReady.bind(this));
-    this.player.on('streamInitiali', this.onReady.bind(this));
     this.player.on('playbackMetaDataLoaded', this.onDownload.bind(this));
     this.player.on('playbackLoadedData', this.onDownload.bind(this));
     this.player.on('canPlay', this.onPlay.bind(this));
@@ -215,6 +214,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   onError(e) {
+    console.log(e);
     this.sendError({ errorCode: e.error.code, errorMessage: e.error.message });
   }
 

@@ -76,7 +76,6 @@ try {
 
   //poulate quailty levels dropdown
   player.on('streamInitialized', function (e) {
-    console.log('streamInitialized', e);
     const bitrates = player.getBitrateInfoListFor('video');
     const qualitySelector = document.querySelector('#qualityLevels');
 
