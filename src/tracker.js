@@ -1,5 +1,5 @@
-import * as nrvideo from "newrelic-video-core";
-import { version } from "../package.json";
+import * as nrvideo from 'newrelic-video-core';
+import { version } from '../package.json';
 
 export default class DashTracker extends nrvideo.VideoTracker {
   setPlayer(player, tag) {
@@ -7,11 +7,27 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   getTrackerName() {
-    return "dash";
+    return 'dash';
   }
 
   getTrackerVersion() {
     return version;
+  }
+
+  getPlayerName() {
+    return 'Dash';
+  }
+
+  getInstrumentationName() {
+    return this.getPlayerName();
+  }
+
+  getInstrumentationVersion() {
+    return this.getPlayerVersion();
+  }
+
+  getInstrumentationProvider() {
+    return 'New Relic';
   }
 
   isLive() {
@@ -26,19 +42,31 @@ export default class DashTracker extends nrvideo.VideoTracker {
     return this.player.getPlaybackRate();
   }
 
+  getPlayhead() {
+    return this.player.time() * 1000; // in milliseconds
+  }
+
   getDuration() {
     // Returns the duration of the MPD in seconds
     return this.player.duration();
   }
 
   getTrack() {
-    const track = this.player.getCurrentTrackFor("audio");
-    return track;
+    try {
+      const track = this.player?.getCurrentTrackFor('audio');
+      return track;
+    } catch (error) {
+      /* do nothing */
+    }
   }
 
   getLanguage() {
-    const activeTrack = this.getTrack();
-    return activeTrack.lang ?? "";
+    try {
+      const activeTrack = this.getTrack();
+      return activeTrack.lang ?? '';
+    } catch (error) {
+      /* do nothing */
+    }
   }
 
   getDashBitrate(type) {
@@ -48,13 +76,14 @@ export default class DashTracker extends nrvideo.VideoTracker {
       For video and audio types the ABR rules update this value before every new download  
       unless autoSwitchBitrate is set to fasle
     */
-    const videoBitrate = this.player.getQualityFor("video");
 
-    return this.player.getBitrateInfoListFor("video")[videoBitrate];
+    const videoBitrate = this.player.getQualityFor(type);
+
+    return this.player.getBitrateInfoListFor(type)[videoBitrate];
   }
 
   getRenditionBitrate() {
-    const currentBitrate = this.getDashBitrate("video");
+    const currentBitrate = this.getDashBitrate('video');
     return currentBitrate?.bitrate;
   }
 
@@ -68,12 +97,12 @@ export default class DashTracker extends nrvideo.VideoTracker {
 
   /** Override to return renidtion actual width (before re-scaling). */
   getRenditionWidth() {
-    return this.getDashBitrate("video")?.width;
+    return this.getDashBitrate('video')?.width;
   }
 
   /** Override to return renidtion actual height (before re-scaling). */
   getRenditionHeight() {
-    return this.getDashBitrate("video")?.height;
+    return this.getDashBitrate('video')?.height;
   }
 
   getPlayerVersion() {
@@ -99,52 +128,52 @@ export default class DashTracker extends nrvideo.VideoTracker {
   registerListeners() {
     nrvideo.Log.debugCommonVideoEvents(this.player, [
       null,
-      "streamInitialized",
-      "playbackMetaDataLoaded",
-      "playbackLoadedData",
-      "canPlay",
-      "playbackPlaying",
-      "playbackPaused",
-      "playbackSeeking",
-      "playbackSeeked",
-      "error",
-      "playbackEnded",
-      "bufferStalled",
-      "bufferLoaded",
-      "qualityChangeRendered",
+      'streamInitialized',
+      'playbackMetaDataLoaded',
+      'playbackLoadedData',
+      'canPlay',
+      'playbackPlaying',
+      'playbackPaused',
+      'playbackSeeking',
+      'playbackSeeked',
+      'error',
+      'playbackEnded',
+      'bufferStalled',
+      'bufferLoaded',
+      'qualityChangeRendered',
     ]);
 
-    this.player.on("streamInitialized", this.onReady.bind(this));
-    this.player.on("playbackMetaDataLoaded", this.onDownload.bind(this));
-    this.player.on("playbackLoadedData", this.onDownload.bind(this));
-    this.player.on("canPlay", this.onPlay.bind(this));
-    this.player.on("playbackPlaying", this.onPlaying.bind(this));
-    this.player.on("playbackPaused", this.onPause.bind(this));
-    this.player.on("playbackSeeking", this.onSeeking.bind(this));
-    this.player.on("playbackSeeked", this.onSeeked.bind(this));
-    this.player.on("error", this.onError.bind(this));
-    this.player.on("playbackError", this.onError.bind(this));
-    this.player.on("playbackEnded", this.onEnded.bind(this));
-    this.player.on("bufferStalled", this.onBufferingStalled.bind(this));
-    this.player.on("bufferLoaded", this.onBufferingLoaded.bind(this));
-    this.player.on("qualityChangeRendered", this.onAdaptation.bind(this));
+    this.player.on('streamInitialized', this.onReady.bind(this));
+    this.player.on('playbackMetaDataLoaded', this.onDownload.bind(this));
+    this.player.on('playbackLoadedData', this.onDownload.bind(this));
+    this.player.on('canPlay', this.onPlay.bind(this));
+    this.player.on('playbackPlaying', this.onPlaying.bind(this));
+    this.player.on('playbackPaused', this.onPause.bind(this));
+    this.player.on('playbackSeeking', this.onSeeking.bind(this));
+    this.player.on('playbackSeeked', this.onSeeked.bind(this));
+    this.player.on('error', this.onError.bind(this));
+    this.player.on('playbackError', this.onError.bind(this));
+    this.player.on('playbackEnded', this.onEnded.bind(this));
+    this.player.on('bufferStalled', this.onBufferingStalled.bind(this));
+    this.player.on('bufferLoaded', this.onBufferingLoaded.bind(this));
+    this.player.on('qualityChangeRendered', this.onAdaptation.bind(this));
   }
 
   unregisterListeners() {
-    this.player.off("streamInitialized", this.onReady);
-    this.player.off("playbackMetaDataLoaded", this.onDownload);
-    this.player.off("playbackLoadedData", this.onDownload);
-    this.player.off("canPlay", this.onPlay);
-    this.player.off("playbackPlaying", this.onPlaying);
-    this.player.off("playbackPaused", this.onPause);
-    this.player.off("playbackSeeking", this.onSeeking);
-    this.player.off("playbackSeeked", this.onSeeked);
-    this.player.off("playbackError", this.onError);
-    this.player.off("error", this.onError);
-    this.player.off("playbackEnded", this.onEnded);
-    this.player.off("bufferStalled", this.onBufferingStalled);
-    this.player.off("bufferLoaded", this.onBufferingLoaded);
-    this.player.off("qualityChangeRendered", this.onAdaptation);
+    this.player.off('streamInitialized', this.onReady);
+    this.player.off('playbackMetaDataLoaded', this.onDownload);
+    this.player.off('playbackLoadedData', this.onDownload);
+    this.player.off('canPlay', this.onPlay);
+    this.player.off('playbackPlaying', this.onPlaying);
+    this.player.off('playbackPaused', this.onPause);
+    this.player.off('playbackSeeking', this.onSeeking);
+    this.player.off('playbackSeeked', this.onSeeked);
+    this.player.off('playbackError', this.onError);
+    this.player.off('error', this.onError);
+    this.player.off('playbackEnded', this.onEnded);
+    this.player.off('bufferStalled', this.onBufferingStalled);
+    this.player.off('bufferLoaded', this.onBufferingLoaded);
+    this.player.off('qualityChangeRendered', this.onAdaptation);
   }
 
   onReady() {
@@ -189,7 +218,8 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   onError(e) {
-    this.sendError(e.error.message);
+    console.log(e);
+    this.sendError({ errorCode: e.error.code, errorMessage: e.error.message });
   }
 
   onEnded() {

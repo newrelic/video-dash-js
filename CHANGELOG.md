@@ -1,8 +1,14 @@
 # CHANGELOG
 
-## [0.1.0]
+## [3.0.0] - 2024/01/22
 
-- Playhead attribute added
+- Updated the Dash.js Player to support new event types: VideoAction, VideoAdAction, VideoErrorAction, and VideoCustomAction.
+
+## [0.2.0] - 2024/12/02
+
+### Update
+
+- attributes added [playerName, playerVersion, instrumntaionProvider,instrumntaionVersion, instrumntaionName]
 
 ## [0.1.0] -
 
