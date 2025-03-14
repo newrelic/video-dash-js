@@ -1,0 +1,21 @@
+name: PR Validation Workflow
+on:
+  pull_request:
+    branches:
+      - main
+jobs:
+  name: Run Unit Tests
+  runs-on: ubuntu-latest
+  steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    - name: Install dependencies
+      run: npm install
+    - name: Run unit tests
+      run: npm test -- --coverage
+    - name: check coverage
+      run: |
+        if [ ${{ steps.RunUnitTests.outputs.coverage }} -lt 90 ]; then
+          echo "Coverage is less than 80%"
+          exit 1
+        fi
