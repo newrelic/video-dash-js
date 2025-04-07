@@ -2,6 +2,38 @@ import * as nrvideo from 'newrelic-video-core';
 import { version } from '../package.json';
 
 export default class DashTracker extends nrvideo.VideoTracker {
+  constructor(player, options) {
+    super(player, options);
+    this.versionString = player.getVersion();
+
+    if (this.versionString) {
+      this.majorVersion = parseInt(this.versionString.split('.')[0]);
+    } else {
+      console.error('player.getVersion is not supported by dash js');
+    }
+
+    // this.setupResponseInterceptor(player);
+  }
+
+  // setupResponseInterceptor(player) {
+  //   // Define response interceptor
+  //   const responseInterceptor = (response) => {
+  //     if (response && response.headers) {
+  //       this.httpsResponse = response;
+  //       this.responseHeaders = response.headers;
+  //     }
+  //     return Promise.resolve(response);
+  //   };
+
+  //   // Add interceptor to the player
+  //   player.addResponseInterceptor(responseInterceptor);
+  // }
+
+  // getResponseHeaders() {
+  //   // Method to provide access to captured headers
+  //   return this.responseHeaders;
+  // }
+
   setPlayer(player, tag) {
     nrvideo.VideoTracker.prototype.setPlayer.call(this, player, tag);
   }
@@ -56,6 +88,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
       const track = this.player?.getCurrentTrackFor('audio');
       return track;
     } catch (error) {
+      console.log('error', error.message);
       /* do nothing */
     }
   }
@@ -70,28 +103,42 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   getDashBitrate(type) {
-    // MediaPlayer == getQualityFor
-    /* 
-      Gets the current download quality for media type video, audio or images. 
-      For video and audio types the ABR rules update this value before every new download  
-      unless autoSwitchBitrate is set to fasle
-    */
+    try {
+      if (this.majorVersion >= 5) {
+        const bitrtaeAbsoluteIndex =
+          this.player.getCurrentRepresentationForType(type).absoluteIndex;
 
-    const videoBitrate = this.player.getQualityFor(type);
-
-    return this.player.getBitrateInfoListFor(type)[videoBitrate];
+        return this.player.getCurrentRepresentationForType(type).mediaInfo
+          ?.bitrateList[bitrtaeAbsoluteIndex];
+      } else {
+        const videoBitrate = this.player.getQualityFor(type);
+        return this.player.getBitrateInfoListFor(type)[videoBitrate];
+      }
+    } catch (error) {
+      /* do nothing */
+    }
   }
 
   getRenditionBitrate() {
-    const currentBitrate = this.getDashBitrate('video');
-    return currentBitrate?.bitrate;
+    try {
+      const currentBitrate = this.getDashBitrate('video');
+
+      if (this.majorVersion >= 5) {
+        return currentBitrate?.bandwidth;
+      }
+
+      return currentBitrate?.bitrate;
+    } catch (error) {
+      /*  do nothing */
+    }
   }
 
   /* 
   Not able to find any field to show renditionName
   getRenditionName() {
-    let qlty = this.getDashBitrate("video");
-    return qlty?.label;
+    let qlty = this.getDashBitrate('video');
+    console.log('qlty', qlty);
+    // return qlty?.label;
   }
   */
 
@@ -218,8 +265,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   onError(e) {
-    console.log(e);
-    this.sendError({ errorCode: e.error.code, errorMessage: e.error.message });
+    this.sendError({ errorCode: e.error.code, errorName: e.error.message });
   }
 
   onEnded() {

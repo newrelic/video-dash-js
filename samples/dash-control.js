@@ -25,6 +25,11 @@ const url = "https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e8
 try {
   player.initialize(myPlayer, url, true);
 
+  // console.lopg('player.extend', player.extend);
+
+  // Make sure the player object is accessible globally if needed
+  window.player = player;
+
   //simulation of conentError
   // setTimeout(() => {
   //   player.initialize(
@@ -63,7 +68,14 @@ try {
   // }, 50000);
 
   //console.log('Dash Tracker', new nrvideo.DashTracker(player));
-  const tracker = new nrvideo.DashTracker(player);
+  const tracker = new nrvideo.DashTracker(player, {
+    customData: {
+      contentTitle: 'Override Existing Title',
+      customPlayerName: 'myGreatPlayer',
+      customPlayerVersion: '9.4.2',
+    },
+    heartbeat: 60000,
+  });
 
   nrvideo.Core.addTracker(tracker);
   tracker.setUserId('nr-user-avinash');
@@ -76,49 +88,49 @@ try {
   // });
 
   //poulate quailty levels dropdown
-  player.on('streamInitialized', function (e) {
-    const bitrates = player.getBitrateInfoListFor('video');
-    const qualitySelector = document.querySelector('#qualityLevels');
+  // player.on('streamInitialized', function (e) {
+  //   const bitrates = player.getBitrateInfoListFor('video');
+  //   const qualitySelector = document.querySelector('#qualityLevels');
 
-    // Add 'auto' option
-    const autoOption = document.createElement('option');
-    autoOption.value = 'auto';
-    autoOption.text = 'Auto';
-    qualitySelector.appendChild(autoOption);
+  //   // Add 'auto' option
+  //   const autoOption = document.createElement('option');
+  //   autoOption.value = 'auto';
+  //   autoOption.text = 'Auto';
+  //   qualitySelector.appendChild(autoOption);
 
-    // Add bitrate options
-    bitrates.forEach((level, index) => {
-      const option = document.createElement('option');
-      option.value = index; // Use index to set quality level
-      option.text = `${level.height}p (${Math.round(
-        level.bitrate / 1000
-      )} kbps)`;
-      qualitySelector.appendChild(option);
-    });
-  });
+  //   // Add bitrate options
+  //   bitrates.forEach((level, index) => {
+  //     const option = document.createElement('option');
+  //     option.value = index; // Use index to set quality level
+  //     option.text = `${level.height}p (${Math.round(
+  //       level.bitrate / 1000
+  //     )} kbps)`;
+  //     qualitySelector.appendChild(option);
+  //   });
+  // });
 
   // Change video quality based on user selection
-  document.querySelector('#qualityLevels').addEventListener('change', (e) => {
-    const selectedQuality = e.target.value;
+  // document.querySelector('#qualityLevels').addEventListener('change', (e) => {
+  //   const selectedQuality = e.target.value;
 
-    loader.style.display = 'block'; // Show loader
+  //   loader.style.display = 'block'; // Show loader
 
-    if (selectedQuality === 'auto') {
-      player.updateSettings({
-        streaming: { abr: { autoSwitchBitrate: { video: true } } },
-      });
-    } else {
-      player.updateSettings({
-        streaming: { abr: { autoSwitchBitrate: { video: false } } },
-      });
-      player.setQualityFor('video', parseInt(selectedQuality, 10));
-    }
-  });
+  //   if (selectedQuality === 'auto') {
+  //     player.updateSettings({
+  //       streaming: { abr: { autoSwitchBitrate: { video: true } } },
+  //     });
+  //   } else {
+  //     player.updateSettings({
+  //       streaming: { abr: { autoSwitchBitrate: { video: false } } },
+  //     });
+  //     player.setQualityFor('video', parseInt(selectedQuality, 10));
+  //   }
+  // });
 
   // Hide loader when quality change completes
-  player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, function () {
-    loader.style.display = 'none'; // Hide loader
-  });
+  // player.on(dashjs.MediaPlayer.events.QUALITY_CHANGE_RENDERED, function () {
+  //   loader.style.display = 'none'; // Hide loader
+  // });
 } catch (error) {
   nrvideo.Core.sendError({ message: error.message });
 }
