@@ -11,28 +11,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     } else {
       console.error('player.getVersion is not supported by dash js');
     }
-
-    // this.setupResponseInterceptor(player);
   }
-
-  // setupResponseInterceptor(player) {
-  //   // Define response interceptor
-  //   const responseInterceptor = (response) => {
-  //     if (response && response.headers) {
-  //       this.httpsResponse = response;
-  //       this.responseHeaders = response.headers;
-  //     }
-  //     return Promise.resolve(response);
-  //   };
-
-  //   // Add interceptor to the player
-  //   player.addResponseInterceptor(responseInterceptor);
-  // }
-
-  // getResponseHeaders() {
-  //   // Method to provide access to captured headers
-  //   return this.responseHeaders;
-  // }
 
   setPlayer(player, tag) {
     nrvideo.VideoTracker.prototype.setPlayer.call(this, player, tag);

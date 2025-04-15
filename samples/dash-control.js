@@ -30,44 +30,6 @@ try {
   // Make sure the player object is accessible globally if needed
   window.player = player;
 
-  //simulation of conentError
-  // setTimeout(() => {
-  //   player.initialize(
-  //     myPlayer,
-  //     'https://bitmovin-a.akamaihd.net/content/sintel/sintell.mpd',
-  //     true
-  //   );
-  // }, 7000);
-
-  // setTimeout(() => {
-  //   player.initialize(
-  //     myPlayer,
-  //     'https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd',
-  //     true
-  //   );
-  // }, 14000);
-
-  // setTimeout(() => {
-  //   player.initialize(
-  //     myPlayer,
-  //     'https://bitmovin-a.akamaihd.net/content/sintel/sintell.mpd',
-  //     true
-  //   );
-
-  //   console.log('executed!');
-  // }, 41000);
-
-  // setTimeout(() => {
-  //   player.initialize(
-  //     myPlayer,
-  //     'https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd',
-  //     true
-  //   );
-
-  //   console.log('executed!');
-  // }, 50000);
-
-  //console.log('Dash Tracker', new nrvideo.DashTracker(player));
   const tracker = new nrvideo.DashTracker(player, {
     customData: {
       contentTitle: 'Override Existing Title',
