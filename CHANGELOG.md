@@ -1,8 +1,9 @@
 # CHANGELOG
 
-## [3.0.1] - 2025-04-07
+## [3.0.1] - 2025-04-22
 
 - **Compatibility:** Ensured Dash.js Tracker is compatible with the latest release of Dash.js Player.
+- **Update:** The `errorName` attribute has been deprecated and `errorMessage` is introduced as its replacement.
 
 ## [3.0.0] - 2024/01/22
 
