@@ -1,8 +1,12 @@
 # CHANGELOG
 
+## [3.0.1] - 2025-04-07
+
+- **Compatibility:** Ensured Dash.js Tracker is compatible with the latest release of Dash.js Player.
+
 ## [3.0.0] - 2024/01/22
 
-- Updated the Dash.js Player to support new event types: VideoAction, VideoAdAction, VideoErrorAction, and VideoCustomAction.
+- Updated the Dash.js Tracker to support new event types: VideoAction, VideoAdAction, VideoErrorAction, and VideoCustomAction.
 
 ## [0.2.0] - 2024/12/02
 
