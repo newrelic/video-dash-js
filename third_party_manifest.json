@@ -1,20 +1,20 @@
 {
-  "lastUpdated": "Fri May 23 2025 10:42:06 GMT+0530 (India Standard Time)",
+  "lastUpdated": "Tue May 27 2025 14:09:18 GMT+0530 (India Standard Time)",
   "projectName": "video-dash",
   "projectUrl": "https://github.com/newrelic/video-dash-js",
   "includeOptDeps": true,
   "optionalDependencies": {},
   "includeDev": true,
   "dependencies": {
-    "@newrelic/video-core@3.0.1": {
+    "@newrelic/video-core@3.1.0": {
       "name": "@newrelic/video-core",
-      "version": "3.0.1",
-      "range": "^3.0.1",
+      "version": "3.1.0",
+      "range": "^3.1.0",
       "licenses": "MIT",
       "repoUrl": "https://github.com/newrelic/video-core-js",
-      "versionedRepoUrl": "https://github.com/newrelic/video-core-js/tree/v3.0.1",
+      "versionedRepoUrl": "https://github.com/newrelic/video-core-js/tree/v3.1.0",
       "licenseFile": "node_modules/@newrelic/video-core/LICENSE.txt",
-      "licenseUrl": "https://github.com/newrelic/video-core-js/blob/v3.0.1/LICENSE.txt",
+      "licenseUrl": "https://github.com/newrelic/video-core-js/blob/v3.1.0/LICENSE.txt",
       "licenseTextSource": "file",
       "publisher": "Jordi Aguilar"
     }
