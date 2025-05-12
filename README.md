@@ -35,10 +35,10 @@ To integrate New Relic Tracker Agent into your web application effectively, you'
 
 ```javascript
 // Add a DashTracker
-nrvideo.Core.addTracker(new nrvideo.DashTracker(player));
+const tracker = new DashTracker(player);
 
 //For setting custom attributes const tracker
-const tracker = new nrvideo.DashjsTracker(player, {
+const tracker = new DashTracker(player, {
   customData: {
     contentTitle: 'Override Existing Title',
     customPlayerName: 'myGreatPlayer',
@@ -51,9 +51,7 @@ tracker.setUserId('userId');
 
 // For Sending custom Action with Attributes
 
-const tracker = new nrvideo.DashTracker(player);
-
-nrvideo.Core.addTracker(tracker);
+const tracker = new DashTracker(player);
 
 tracker.sendCustom('CUSTOM_ACTION', 'state time', {
   test1: 'value1',
