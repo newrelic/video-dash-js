@@ -27,10 +27,10 @@ try {
 
   // console.lopg('player.extend', player.extend);
 
-  // Make sure the player object is accessible globally if needed
-  window.player = player;
+  // // Make sure the player object is accessible globally if needed
+  // window.player = player;
 
-  const tracker = new nrvideo.DashTracker(player, {
+  const tracker = new DashTracker(player, {
     customData: {
       contentTitle: 'Override Existing Title',
       customPlayerName: 'myGreatPlayer',
@@ -39,7 +39,6 @@ try {
     heartbeat: 60000,
   });
 
-  nrvideo.Core.addTracker(tracker);
   tracker.setUserId('nr-user-avinash');
 
   // Send custom action
