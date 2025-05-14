@@ -1,4 +1,4 @@
-import nrvideo from '@rajeev-kumar/video-core'
+import nrvideo from '@newrelic/video-core'
 import { version } from '../package.json';
 
 export default class DashTracker extends nrvideo.VideoTracker {
