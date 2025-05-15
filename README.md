@@ -30,10 +30,23 @@ To integrate New Relic Tracker Agent into your web application effectively, you'
   </body>
 </html>
 ```
+## Adding the agent package to your project
+
+To make the tracker available to your application, install via [NPM](https://docs.npmjs.com/cli/v8/commands/npm-install) or [Yarn](https://classic.yarnpkg.com/lang/en/docs/cli/install/).
+
+```shell
+$ npm install @newrelic/video-dash
+```
+
+```shell
+$ yarn add @newrelic/video-dash
+```
 
 ## Instantiating the Dash Tracker
 
 ```javascript
+//Add import statement
+import DashTracker from "@newrelic/video-dash";
 // Add a DashTracker
 const tracker = new DashTracker(player);
 
