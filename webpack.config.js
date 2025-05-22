@@ -1,6 +1,6 @@
 var path = require('path');
 var webpack = require('webpack');
-var TerserPlugin = require('terser-webpack-plugin');
+// var TerserPlugin = require('terser-webpack-plugin');
 var WebpackObfuscator = require("webpack-obfuscator");
 
 var pkg = require('./package.json');
@@ -21,7 +21,7 @@ var license =
     entry: './src/index.js',
     output: {
       path: path.resolve(__dirname, './dist/umd'),
-      filename: 'dash' + '.min.js',
+      filename: "newrelic-video-dash.min.js",
       library: 'DashTracker',
       libraryTarget: 'umd',
       libraryExport: "default", 
@@ -82,10 +82,10 @@ var license =
         
         ],
       },
-      optimization: {
-        minimize: true,
-        minimizer: [new TerserPlugin()],
-      },
+      // optimization: {
+      //   minimize: true,
+      //   minimizer: [new TerserPlugin()],
+      // },
       plugins: [
         new webpack.BannerPlugin({
           banner: license,
@@ -131,10 +131,10 @@ var license =
           },
         ],
       },
-      optimization: {
-        minimize: true,
-        minimizer: [new TerserPlugin()],
-      },
+      // optimization: {
+      //   minimize: true,
+      //   minimizer: [new TerserPlugin()],
+      // },
       plugins: [
         new webpack.BannerPlugin({
           banner: license,
