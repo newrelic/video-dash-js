@@ -13,7 +13,6 @@ jobs:
     uses: newrelic/video-core-js/.github/workflows/npm-publish.yml@stable
     with:
       node-version: 'lts/*'
-      publish-to-npm: true
       s3-path: 'media-agents/browser/dash'
       file-to-upload: 'dist/umd/newrelic-video-dash.min.js'
     secrets:
