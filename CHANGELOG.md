@@ -1,9 +1,14 @@
 # CHANGELOG
 
-## [3.0.1] - 2025-04-22
+## [3.0.2] - 2025-05-14
 
-- **Compatibility:** Ensured Dash.js Tracker is compatible with the latest release of Dash.js Player.
-- **Update:** The `errorName` attribute has been deprecated and `errorMessage` is introduced as its replacement.
+### Enhancements
+
+* **Publishing to npm:** The package can now be published to npm, making it easily accessible.
+
+### Build
+
+* **Distribution Formats:** Added `cjs`, `esm`, and `umd` builds to the `dist` folder, ensuring compatibility with CommonJS, ES Modules, and UMD module formats.
 
 ## [3.0.0] - 2024/01/22
 
