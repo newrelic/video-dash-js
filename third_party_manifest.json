@@ -1,18 +1,19 @@
 {
-  "lastUpdated": "Wed May 14 2025 10:29:32 GMT+0530 (India Standard Time)",
+  "lastUpdated": "Fri May 23 2025 10:42:06 GMT+0530 (India Standard Time)",
   "projectName": "video-dash",
   "projectUrl": "https://github.com/newrelic/video-dash-js",
   "includeOptDeps": true,
+  "optionalDependencies": {},
   "includeDev": true,
   "dependencies": {
-    "@rajeev-kumar/video-core@3.0.1": {
-      "name": "@rajeev-kumar/video-core",
+    "@newrelic/video-core@3.0.1": {
+      "name": "@newrelic/video-core",
       "version": "3.0.1",
       "range": "^3.0.1",
       "licenses": "MIT",
       "repoUrl": "https://github.com/newrelic/video-core-js",
       "versionedRepoUrl": "https://github.com/newrelic/video-core-js/tree/v3.0.1",
-      "licenseFile": "node_modules/@rajeev-kumar/video-core/LICENSE.txt",
+      "licenseFile": "node_modules/@newrelic/video-core/LICENSE.txt",
       "licenseUrl": "https://github.com/newrelic/video-core-js/blob/v3.0.1/LICENSE.txt",
       "licenseTextSource": "file",
       "publisher": "Jordi Aguilar"
@@ -167,18 +168,17 @@
       "licenseTextSource": "file",
       "publisher": "Timofey Kachalov"
     },
-    "webpack@5.99.8": {
+    "webpack@5.99.9": {
       "name": "webpack",
-      "version": "5.99.8",
+      "version": "5.99.9",
       "range": "^5.94.0",
       "licenses": "MIT",
       "repoUrl": "https://github.com/webpack/webpack",
-      "versionedRepoUrl": "https://github.com/webpack/webpack/tree/v5.99.8",
+      "versionedRepoUrl": "https://github.com/webpack/webpack/tree/v5.99.9",
       "licenseFile": "node_modules/webpack/LICENSE",
-      "licenseUrl": "https://github.com/webpack/webpack/blob/v5.99.8/LICENSE",
+      "licenseUrl": "https://github.com/webpack/webpack/blob/v5.99.9/LICENSE",
       "licenseTextSource": "file",
       "publisher": "Tobias Koppers @sokra"
     }
-  },
-  "optionalDependencies": {}
+  }
 }

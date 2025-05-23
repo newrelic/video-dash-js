@@ -14,7 +14,7 @@ code, the source code can be found at [https://github.com/newrelic/video-dash-js
 
 **[dependencies](#dependencies)**
 
-* [@rajeev-kumar/video-core](#rajeev-kumarvideo-core)
+* [@newrelic/video-core](#newrelicvideo-core)
 
 **[devDependencies](#devDependencies)**
 
@@ -38,9 +38,9 @@ code, the source code can be found at [https://github.com/newrelic/video-dash-js
 
 ## dependencies
 
-### @rajeev-kumar/video-core
+### @newrelic/video-core
 
-This product includes source derived from [@rajeev-kumar/video-core](https://github.com/newrelic/video-core-js) ([v3.0.1](https://github.com/newrelic/video-core-js/tree/v3.0.1)), distributed under the [MIT License](https://github.com/newrelic/video-core-js/blob/v3.0.1/LICENSE.txt):
+This product includes source derived from [@newrelic/video-core](https://github.com/newrelic/video-core-js) ([v3.0.1](https://github.com/newrelic/video-core-js/tree/v3.0.1)), distributed under the [MIT License](https://github.com/newrelic/video-core-js/blob/v3.0.1/LICENSE.txt):
 
 ```
                                  Apache License
@@ -781,7 +781,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ### webpack
 
-This product includes source derived from [webpack](https://github.com/webpack/webpack) ([v5.99.8](https://github.com/webpack/webpack/tree/v5.99.8)), distributed under the [MIT License](https://github.com/webpack/webpack/blob/v5.99.8/LICENSE):
+This product includes source derived from [webpack](https://github.com/webpack/webpack) ([v5.99.9](https://github.com/webpack/webpack/tree/v5.99.9)), distributed under the [MIT License](https://github.com/webpack/webpack/blob/v5.99.9/LICENSE):
 
 ```
 Copyright JS Foundation and other contributors
