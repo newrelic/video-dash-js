@@ -1,9 +1,8 @@
 {
-  "lastUpdated": "Thu Aug 28 2025 14:46:49 GMT+0530 (India Standard Time)",
-  "projectName": "video-dash",
+  "lastUpdated": "Thu Aug 28 2025 15:17:25 GMT+0530 (India Standard Time)",
+  "projectName": "@newrelic/video-dash",
   "projectUrl": "https://github.com/newrelic/video-dash-js",
   "includeOptDeps": true,
-  "optionalDependencies": {},
   "includeDev": true,
   "dependencies": {
     "@newrelic/video-core@3.1.0": {
@@ -33,15 +32,15 @@
       "publisher": "The Babel Team",
       "url": "https://babel.dev/team"
     },
-    "@babel/core@7.27.4": {
+    "@babel/core@7.27.1": {
       "name": "@babel/core",
-      "version": "7.27.4",
+      "version": "7.27.1",
       "range": "^7.25.2",
       "licenses": "MIT",
       "repoUrl": "https://github.com/babel/babel",
-      "versionedRepoUrl": "https://github.com/babel/babel/tree/v7.27.4",
+      "versionedRepoUrl": "https://github.com/babel/babel/tree/v7.27.1",
       "licenseFile": "node_modules/@babel/core/LICENSE",
-      "licenseUrl": "https://github.com/babel/babel/blob/v7.27.4/LICENSE",
+      "licenseUrl": "https://github.com/babel/babel/blob/v7.27.1/LICENSE",
       "licenseTextSource": "file",
       "publisher": "The Babel Team",
       "url": "https://babel.dev/team"
@@ -180,5 +179,6 @@
       "licenseTextSource": "file",
       "publisher": "Tobias Koppers @sokra"
     }
-  }
+  },
+  "optionalDependencies": {}
 }

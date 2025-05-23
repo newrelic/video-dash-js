@@ -1,6 +1,6 @@
 # Third Party Notices
 
-The video-dash uses source code from third party libraries which carry
+The @newrelic/video-dash uses source code from third party libraries which carry
 their own copyright notices and license terms. These notices are provided
 below.
 
@@ -282,7 +282,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### @babel/core
 
-This product includes source derived from [@babel/core](https://github.com/babel/babel) ([v7.27.4](https://github.com/babel/babel/tree/v7.27.4)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.27.4/LICENSE):
+This product includes source derived from [@babel/core](https://github.com/babel/babel) ([v7.27.1](https://github.com/babel/babel/tree/v7.27.1)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.27.1/LICENSE):
 
 ```
 MIT License
