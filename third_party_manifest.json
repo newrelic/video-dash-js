@@ -1,8 +1,9 @@
 {
-  "lastUpdated": "Thu Aug 28 2025 15:17:25 GMT+0530 (India Standard Time)",
+  "lastUpdated": "Thu Aug 28 2025 15:19:13 GMT+0530 (India Standard Time)",
   "projectName": "@newrelic/video-dash",
   "projectUrl": "https://github.com/newrelic/video-dash-js",
   "includeOptDeps": true,
+  "optionalDependencies": {},
   "includeDev": true,
   "dependencies": {
     "@newrelic/video-core@3.1.0": {
@@ -179,6 +180,5 @@
       "licenseTextSource": "file",
       "publisher": "Tobias Koppers @sokra"
     }
-  },
-  "optionalDependencies": {}
+  }
 }
