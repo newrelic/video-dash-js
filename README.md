@@ -30,15 +30,28 @@ To integrate New Relic Tracker Agent into your web application effectively, you'
   </body>
 </html>
 ```
+## Adding the agent package to your project
+
+To make the tracker available to your application, install via [NPM](https://docs.npmjs.com/cli/v8/commands/npm-install) or [Yarn](https://classic.yarnpkg.com/lang/en/docs/cli/install/).
+
+```shell
+$ npm install @newrelic/video-dash
+```
+
+```shell
+$ yarn add @newrelic/video-dash
+```
 
 ## Instantiating the Dash Tracker
 
 ```javascript
+//Add import statement
+import DashTracker from "@newrelic/video-dash";
 // Add a DashTracker
-nrvideo.Core.addTracker(new nrvideo.DashTracker(player));
+const tracker = new DashTracker(player);
 
 //For setting custom attributes const tracker
-const tracker = new nrvideo.DashjsTracker(player, {
+const tracker = new DashTracker(player, {
   customData: {
     contentTitle: 'Override Existing Title',
     customPlayerName: 'myGreatPlayer',
@@ -51,9 +64,7 @@ tracker.setUserId('userId');
 
 // For Sending custom Action with Attributes
 
-const tracker = new nrvideo.DashTracker(player);
-
-nrvideo.Core.addTracker(tracker);
+const tracker = new DashTracker(player);
 
 tracker.sendCustom('CUSTOM_ACTION', 'state time', {
   test1: 'value1',

@@ -1,8 +1,9 @@
 {
-  "name": "newrelic-video-dash",
-  "version": "3.0.1",
+  "name": "@newrelic/video-dash",
+  "version": "3.1.0",
   "description": "New relic tracker for dash player",
-  "main": "src/index.js",
+  "main": "dist/cjs/index.js",
+  "module": "dist/esm/index.js",
   "scripts": {
     "test": "jest --coverage",
     "build": "webpack --mode production",
@@ -11,7 +12,8 @@
     "watch:dev": "webpack --progress --color --watch --mode development",
     "prezip": "npm run build",
     "zip": "zip -P newrelic -x '*.DS_Store' -r dash.zip dist samples README.md CHANGELOG.md EULA.md",
-    "clean": "rm -rf dist *.zip"
+    "clean": "rm -rf dist *.zip",
+    "third-party-updates": "oss third-party manifest --includeOptDeps && oss third-party notices --includeOptDeps && git add THIRD_PARTY_NOTICES.md third_party_manifest.json"
   },
   "repository": {
     "type": "git",
@@ -20,7 +22,7 @@
   "author": "Malay Chandan",
   "license": "MIT",
   "dependencies": {
-    "newrelic-video-core": "github:newrelic/video-core-js#stable"
+    "@newrelic/video-core": "^3.1.0"
   },
   "devDependencies": {
     "@babel/cli": "^7.25.6",
@@ -28,11 +30,23 @@
     "@babel/node": "^7.25.0",
     "@babel/plugin-transform-modules-commonjs": "^7.24.8",
     "@babel/preset-env": "^7.25.4",
+    "@newrelic/newrelic-oss-cli": "^0.1.2",
     "@babel/register": "^7.24.6",
     "babel-jest": "^29.7.0",
     "babel-loader": "^9.1.3",
     "jest": "^29.7.0",
     "webpack": "^5.94.0",
-    "webpack-cli": "^5.1.4"
+    "webpack-cli": "^4.9.2",
+    "webpack-obfuscator": "^3.5.1"
+  },
+  "files": [
+    "THIRD_PARTY_NOTICES.md",
+    "dist",
+    "CHANGELOG.md",
+    "README.md",
+    "!test"
+  ],
+  "publishConfig": {
+    "access": "public"
   }
 }
