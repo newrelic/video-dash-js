@@ -1,6 +1,7 @@
 var path = require('path');
 var webpack = require('webpack');
 var TerserPlugin = require('terser-webpack-plugin');
+var WebpackObfuscator = require('webpack-obfuscator');
 
 var pkg = require('./package.json');
 var license =
@@ -45,6 +46,15 @@ module.exports = [
         banner: license,
         entryOnly: true,
       }),
+      new WebpackObfuscator(
+        {
+          rotateStringArray: true,
+          stringArray: true,
+          stringArrayThreshold: 0.75,
+          identifierNamesGenerator: 'mangled',
+        },
+        ['excluded.js']
+      ),
     ],
   },
   // commonjs buid
@@ -80,6 +90,16 @@ module.exports = [
         banner: license,
         entryOnly: true,
       }),
+      // Obfuscation Plugin
+      new WebpackObfuscator(
+        {
+          rotateStringArray: true, // Rotate string arrays for obfuscation
+          stringArray: true, // Enable string array obfuscation
+          stringArrayThreshold: 0.75, // Obfuscate 75% of strings
+          identifierNamesGenerator: 'mangled',
+        },
+        ['excluded.js'] // Exclude specific files if needed
+      ),
     ],
   },
   // ES Module Build
@@ -121,6 +141,15 @@ module.exports = [
         banner: license,
         entryOnly: true,
       }),
+      new WebpackObfuscator(
+        {
+          rotateStringArray: true,
+          stringArray: true,
+          stringArrayThreshold: 0.75,
+          identifierNamesGenerator: 'mangled',
+        },
+        ['excluded.js']
+      ),
     ],
   },
 ];
