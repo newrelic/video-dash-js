@@ -1,11 +1,11 @@
-import nrvideo from '@newrelic/video-core'
+import nrvideo from '@newrelic/video-core';
 import { version } from '../package.json';
 
 export default class DashTracker extends nrvideo.VideoTracker {
   constructor(player, options) {
     super(player, options);
     this.versionString = player.getVersion();
-    nrvideo.Core.addTracker(this);
+    nrvideo.Core.addTracker(this, options);
 
     if (this.versionString) {
       this.majorVersion = parseInt(this.versionString.split('.')[0]);
