@@ -31,17 +31,10 @@ try {
   // window.player = player;
 
   options = {
-    customData: {
-      contentTitle: 'Override Existing Title',
-      customPlayerName: 'myGreatPlayer',
-      customPlayerVersion: '9.4.2',
-    },
     info: {
       beacon: 'XXXXXXXXXXX',
-      errorBeacon: 'XXXXXXXXXXXXX',
       licenseKey: 'XXXXXXXXXXXXX',
       applicationID: 'XXXXXXX',
-      sa: 1,
     },
   };
 
