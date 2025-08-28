@@ -1,5 +1,5 @@
 {
-  "lastUpdated": "Tue May 27 2025 14:09:18 GMT+0530 (India Standard Time)",
+  "lastUpdated": "Thu Aug 28 2025 14:46:49 GMT+0530 (India Standard Time)",
   "projectName": "video-dash",
   "projectUrl": "https://github.com/newrelic/video-dash-js",
   "includeOptDeps": true,
@@ -33,15 +33,15 @@
       "publisher": "The Babel Team",
       "url": "https://babel.dev/team"
     },
-    "@babel/core@7.27.1": {
+    "@babel/core@7.27.4": {
       "name": "@babel/core",
-      "version": "7.27.1",
+      "version": "7.27.4",
       "range": "^7.25.2",
       "licenses": "MIT",
       "repoUrl": "https://github.com/babel/babel",
-      "versionedRepoUrl": "https://github.com/babel/babel/tree/v7.27.1",
+      "versionedRepoUrl": "https://github.com/babel/babel/tree/v7.27.4",
       "licenseFile": "node_modules/@babel/core/LICENSE",
-      "licenseUrl": "https://github.com/babel/babel/blob/v7.27.1/LICENSE",
+      "licenseUrl": "https://github.com/babel/babel/blob/v7.27.4/LICENSE",
       "licenseTextSource": "file",
       "publisher": "The Babel Team",
       "url": "https://babel.dev/team"

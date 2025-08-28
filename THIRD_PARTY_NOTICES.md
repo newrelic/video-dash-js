@@ -282,7 +282,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### @babel/core
 
-This product includes source derived from [@babel/core](https://github.com/babel/babel) ([v7.27.1](https://github.com/babel/babel/tree/v7.27.1)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.27.1/LICENSE):
+This product includes source derived from [@babel/core](https://github.com/babel/babel) ([v7.27.4](https://github.com/babel/babel/tree/v7.27.4)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.27.4/LICENSE):
 
 ```
 MIT License
