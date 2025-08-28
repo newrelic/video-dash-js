@@ -39,15 +39,13 @@ try {
     info: {
       beacon: 'XXXXXXXXXXX',
       errorBeacon: 'XXXXXXXXXXXXX',
-      licenseKey: 'NRJS-XXXXXXXXXXXXX',
+      licenseKey: 'XXXXXXXXXXXXX',
       applicationID: 'XXXXXXX',
       sa: 1,
     },
   };
 
   const tracker = new DashTracker(player, options);
-
-  tracker.setUserId('nr-user-avinash');
 
   // Send custom action
 
