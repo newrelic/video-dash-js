@@ -20,7 +20,7 @@
     "url": "https://github.com/newrelic/video-dash-js"
   },
   "author": "Malay Chandan",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "dependencies": {
     "@newrelic/video-core": "^3.1.0"
   },
