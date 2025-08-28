@@ -1,6 +1,6 @@
 # Third Party Notices
 
-The video-dash uses source code from third party libraries which carry
+The @newrelic/video-dash uses source code from third party libraries which carry
 their own copyright notices and license terms. These notices are provided
 below.
 
