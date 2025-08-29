@@ -37,7 +37,7 @@ Load **scripts** inside `dist` folder into your page.
 ```
 
 ```javascript
-nrvideo.Core.addTracker(new nrvideo.DashTracker(player));
+nrvideo.Core.addTracker(new DashTracker(player));
 ```
 
 ## Release
