@@ -49,7 +49,7 @@ $ yarn add @newrelic/video-dash
 //Add import statement
 import DashTracker from '@newrelic/video-dash';
 
-// Get Application info from onboarding steps of new relic, from tiles Place a JavaScript Snippet Code
+// Get Application info from onboarding steps of new relic
 const options = {
   info: {
     beacon: 'xxxxxxxxxx',
