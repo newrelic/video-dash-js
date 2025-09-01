@@ -1,6 +1,6 @@
 # Third Party Notices
 
-The @newrelic/video-dash uses source code from third party libraries which carry
+The video-dash uses source code from third party libraries which carry
 their own copyright notices and license terms. These notices are provided
 below.
 
@@ -40,7 +40,7 @@ code, the source code can be found at [https://github.com/newrelic/video-dash-js
 
 ### @newrelic/video-core
 
-This product includes source derived from [@newrelic/video-core](https://github.com/newrelic/video-core-js) ([v3.1.0](https://github.com/newrelic/video-core-js/tree/v3.1.0)), distributed under the [MIT License](https://github.com/newrelic/video-core-js/blob/v3.1.0/LICENSE.txt):
+This product includes source derived from [@newrelic/video-core](https://github.com/newrelic/video-core-js) ([v4.0.0](https://github.com/newrelic/video-core-js/tree/v4.0.0)), distributed under the [Apache-2.0 License](https://github.com/newrelic/video-core-js/blob/v4.0.0/LICENSE):
 
 ```
                                  Apache License
@@ -231,7 +231,7 @@ This product includes source derived from [@newrelic/video-core](https://github.
       same "printed page" as the copyright notice for easier
       identification within third-party archives.
 
-   Copyright 2019 New Relic, Inc.
+   Copyright New Relic, Inc. All rights reserved.
 
    Licensed under the Apache License, Version 2.0 (the "License");
    you may not use this file except in compliance with the License.
@@ -244,7 +244,6 @@ This product includes source derived from [@newrelic/video-core](https://github.
    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
    See the License for the specific language governing permissions and
    limitations under the License.
-
 ```
 
 
@@ -252,7 +251,7 @@ This product includes source derived from [@newrelic/video-core](https://github.
 
 ### @babel/cli
 
-This product includes source derived from [@babel/cli](https://github.com/babel/babel) ([v7.27.2](https://github.com/babel/babel/tree/v7.27.2)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.27.2/LICENSE):
+This product includes source derived from [@babel/cli](https://github.com/babel/babel) ([v7.28.3](https://github.com/babel/babel/tree/v7.28.3)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.28.3/LICENSE):
 
 ```
 MIT License
@@ -282,7 +281,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### @babel/core
 
-This product includes source derived from [@babel/core](https://github.com/babel/babel) ([v7.27.1](https://github.com/babel/babel/tree/v7.27.1)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.27.1/LICENSE):
+This product includes source derived from [@babel/core](https://github.com/babel/babel) ([v7.28.3](https://github.com/babel/babel/tree/v7.28.3)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.28.3/LICENSE):
 
 ```
 MIT License
@@ -312,7 +311,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### @babel/node
 
-This product includes source derived from [@babel/node](https://github.com/babel/babel) ([v7.27.1](https://github.com/babel/babel/tree/v7.27.1)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.27.1/LICENSE):
+This product includes source derived from [@babel/node](https://github.com/babel/babel) ([v7.28.0](https://github.com/babel/babel/tree/v7.28.0)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.28.0/LICENSE):
 
 ```
 MIT License
@@ -372,7 +371,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### @babel/preset-env
 
-This product includes source derived from [@babel/preset-env](https://github.com/babel/babel) ([v7.27.2](https://github.com/babel/babel/tree/v7.27.2)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.27.2/LICENSE):
+This product includes source derived from [@babel/preset-env](https://github.com/babel/babel) ([v7.28.3](https://github.com/babel/babel/tree/v7.28.3)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.28.3/LICENSE):
 
 ```
 MIT License
@@ -402,7 +401,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ### @babel/register
 
-This product includes source derived from [@babel/register](https://github.com/babel/babel) ([v7.27.1](https://github.com/babel/babel/tree/v7.27.1)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.27.1/LICENSE):
+This product includes source derived from [@babel/register](https://github.com/babel/babel) ([v7.28.3](https://github.com/babel/babel/tree/v7.28.3)), distributed under the [MIT License](https://github.com/babel/babel/blob/v7.28.3/LICENSE):
 
 ```
 MIT License
@@ -781,7 +780,7 @@ THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 ### webpack
 
-This product includes source derived from [webpack](https://github.com/webpack/webpack) ([v5.99.9](https://github.com/webpack/webpack/tree/v5.99.9)), distributed under the [MIT License](https://github.com/webpack/webpack/blob/v5.99.9/LICENSE):
+This product includes source derived from [webpack](https://github.com/webpack/webpack) ([v5.101.3](https://github.com/webpack/webpack/tree/v5.101.3)), distributed under the [MIT License](https://github.com/webpack/webpack/blob/v5.101.3/LICENSE):
 
 ```
 Copyright JS Foundation and other contributors
