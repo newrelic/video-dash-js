@@ -2,8 +2,8 @@
   "name": "@newrelic/video-dash",
   "version": "4.0.0",
   "description": "New relic tracker for dash player",
-  "main": "dist/cjs/index.js",
-  "module": "dist/esm/index.js",
+  "main": "./src/index.js",
+  "module": "./src/index.js",
   "scripts": {
     "test": "jest --coverage",
     "build": "webpack --mode production",
