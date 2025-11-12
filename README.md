@@ -10,9 +10,9 @@ The New Relic Dash Tracker enhances your media applications by tracking video ev
 - For questions and feedback on this package, please visit the [Explorer's Hub](https://discuss.newrelic.com), New Relic's community support forum.
 - Looking to contribute to the Player Name agent code base? See [DEVELOPING.md](./DEVELOPING.md) for instructions on building and testing the browser agent library, and Contributors.
 
-## Adding The Dash Tracker To Your Project
+## Adding The Dash Tracker To Your Project With Placing Snippet Code From Onboarding
 
-To integrate New Relic Tracker Agent into your web application effectively, you'll need to instrument the Browser Agent code first and then add the player script. Below is a guide on how to do this within your HTML file:
+To integrate New Relic Tracker Agent into your web application effectively, Get Dash Tracker Sdk from Onboarding and Place it on top JS File
 
 ```html
 <!DOCTYPE html>
@@ -21,7 +21,7 @@ To integrate New Relic Tracker Agent into your web application effectively, you'
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>New Relic Tracker Integration</title>
-    <script src="path/to/browser-agent.js"></script>
+
     <!-- snippet code generated  -->
     <script src="path/to/dash-tracker.js"></script>
   </head>
@@ -30,6 +30,7 @@ To integrate New Relic Tracker Agent into your web application effectively, you'
   </body>
 </html>
 ```
+
 ## Adding the agent package to your project
 
 To make the tracker available to your application, install via [NPM](https://docs.npmjs.com/cli/v8/commands/npm-install) or [Yarn](https://classic.yarnpkg.com/lang/en/docs/cli/install/).
@@ -46,12 +47,26 @@ $ yarn add @newrelic/video-dash
 
 ```javascript
 //Add import statement
-import DashTracker from "@newrelic/video-dash";
-// Add a DashTracker
-const tracker = new DashTracker(player);
+import DashTracker from '@newrelic/video-dash';
 
-//For setting custom attributes const tracker
-const tracker = new DashTracker(player, {
+// Get Application info from onboarding steps of new relic
+const options = {
+  info: {
+    beacon: 'xxxxxxxxxx',
+    applicationID: 'xxxxxxx',
+    licenseKey: 'xxxxxxxxxxx',
+  },
+};
+
+// Initialize the DashTracker
+const tracker = new DashTracker(player, options);
+
+// For setting userId
+tracker.setUserId('userId');
+
+// For Sending custom Attributes
+
+tracker.sendOptions({
   customData: {
     contentTitle: 'Override Existing Title',
     customPlayerName: 'myGreatPlayer',
@@ -59,17 +74,15 @@ const tracker = new DashTracker(player, {
   },
 });
 
-// For setting userId
-tracker.setUserId('userId');
-
 // For Sending custom Action with Attributes
-
-const tracker = new DashTracker(player);
 
 tracker.sendCustom('CUSTOM_ACTION', 'state time', {
   test1: 'value1',
   test2: 'value2',
 });
+
+// For setting different harvest interval (1s to 5 mins)
+tracker.setHarvestInterval(40000); // setting for 40 secs
 ```
 
 ## Data Model
@@ -91,6 +104,10 @@ We encourage your contributions to improve New Relic Dash Tracker! Keep in mind 
 As noted in our [security policy](../../security/policy), New Relic is committed to the privacy and security of our customers and their data. We believe that providing coordinated disclosure by security researchers and engaging with the security community are important means to achieve our security goals.
 
 If you believe you have found a security vulnerability in this project or any of New Relic's products or websites, we welcome and greatly appreciate you reporting it to New Relic through [our bug bounty program](https://docs.newrelic.com/docs/security/security-privacy/information-security/report-security-vulnerabilities/).
+
+## Pricing
+
+Important: Ingesting video telemetry data via this video agent requires a subscription to an Advanced Compute. Contact your New Relic account representative for more details on pricing and entitlement.
 
 ## License
 

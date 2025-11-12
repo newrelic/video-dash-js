@@ -1,11 +1,11 @@
-import nrvideo from '@newrelic/video-core'
+import nrvideo from '@newrelic/video-core';
 import { version } from '../package.json';
 
 export default class DashTracker extends nrvideo.VideoTracker {
   constructor(player, options) {
     super(player, options);
     this.versionString = player.getVersion();
-    nrvideo.Core.addTracker(this);
+    nrvideo.Core.addTracker(this, options);
 
     if (this.versionString) {
       this.majorVersion = parseInt(this.versionString.split('.')[0]);
@@ -170,20 +170,34 @@ export default class DashTracker extends nrvideo.VideoTracker {
       'qualityChangeRendered',
     ]);
 
-    this.player.on('streamInitialized', this.onReady.bind(this));
-    this.player.on('playbackMetaDataLoaded', this.onDownload.bind(this));
-    this.player.on('playbackLoadedData', this.onDownload.bind(this));
-    this.player.on('canPlay', this.onPlay.bind(this));
-    this.player.on('playbackPlaying', this.onPlaying.bind(this));
-    this.player.on('playbackPaused', this.onPause.bind(this));
-    this.player.on('playbackSeeking', this.onSeeking.bind(this));
-    this.player.on('playbackSeeked', this.onSeeked.bind(this));
-    this.player.on('error', this.onError.bind(this));
-    this.player.on('playbackError', this.onError.bind(this));
-    this.player.on('playbackEnded', this.onEnded.bind(this));
-    this.player.on('bufferStalled', this.onBufferingStalled.bind(this));
-    this.player.on('bufferLoaded', this.onBufferingLoaded.bind(this));
-    this.player.on('qualityChangeRendered', this.onAdaptation.bind(this));
+    // BIND LISTENER METHODS
+    this.onReady = this.onReady.bind(this);
+    this.onDownload = this.onDownload.bind(this);
+    this.onPlay = this.onPlay.bind(this);
+    this.onPlaying = this.onPlaying.bind(this);
+    this.onPause = this.onPause.bind(this);
+    this.onSeeking = this.onSeeking.bind(this);
+    this.onSeeked = this.onSeeked.bind(this);
+    this.onError = this.onError.bind(this);
+    this.onEnded = this.onEnded.bind(this);
+    this.onBufferingStalled = this.onBufferingStalled.bind(this);
+    this.onBufferingLoaded = this.onBufferingLoaded.bind(this);
+    this.onAdaptation = this.onAdaptation.bind(this);
+
+    this.player.on('streamInitialized', this.onReady);
+    this.player.on('playbackMetaDataLoaded', this.onDownload);
+    this.player.on('playbackLoadedData', this.onDownload);
+    this.player.on('canPlay', this.onPlay);
+    this.player.on('playbackPlaying', this.onPlaying);
+    this.player.on('playbackPaused', this.onPause);
+    this.player.on('playbackSeeking', this.onSeeking);
+    this.player.on('playbackSeeked', this.onSeeked);
+    this.player.on('error', this.onError);
+    this.player.on('playbackError', this.onError);
+    this.player.on('playbackEnded', this.onEnded);
+    this.player.on('bufferStalled', this.onBufferingStalled);
+    this.player.on('bufferLoaded', this.onBufferingLoaded);
+    this.player.on('qualityChangeRendered', this.onAdaptation);
   }
 
   unregisterListeners() {

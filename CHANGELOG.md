@@ -1,5 +1,13 @@
 # CHANGELOG
 
+### Update
+
+## [4.0.0] - 2025-07-28
+
+### Changed
+
+- **Standalone Agent:** This tracker now operates independently with its own authorization details, removing the dependency on a browser agent.
+
 ## [3.1.0] - 2025-05-27
 
 ### Enhancements
@@ -9,7 +17,6 @@
 ### Build
 
 - **Distribution Formats:** Added `cjs`, `esm`, and `umd` builds to the `dist` folder, ensuring compatibility with CommonJS, ES Modules, and UMD module formats.
-
 
 ## [3.0.0] - 2024/01/22
 

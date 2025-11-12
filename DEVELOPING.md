@@ -37,7 +37,15 @@ Load **scripts** inside `dist` folder into your page.
 ```
 
 ```javascript
-nrvideo.Core.addTracker(new nrvideo.DashTracker(player));
+options = {
+  info: {
+    beacon: 'XXXXXXXXXXX',
+    licenseKey: 'XXXXXXXXXXXXX',
+    applicationID: 'XXXXXXX',
+  },
+};
+
+const tracker = new DashTracker(player, options);
 ```
 
 ## Release

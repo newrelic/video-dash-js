@@ -30,16 +30,15 @@ try {
   // // Make sure the player object is accessible globally if needed
   // window.player = player;
 
-  const tracker = new DashTracker(player, {
-    customData: {
-      contentTitle: 'Override Existing Title',
-      customPlayerName: 'myGreatPlayer',
-      customPlayerVersion: '9.4.2',
+  options = {
+    info: {
+      beacon: 'XXXXXXXXXXX',
+      licenseKey: 'XXXXXXXXXXXXX',
+      applicationID: 'XXXXXXX',
     },
-    heartbeat: 60000,
-  });
+  };
 
-  tracker.setUserId('nr-user-avinash');
+  const tracker = new DashTracker(player, options);
 
   // Send custom action
 
@@ -93,5 +92,5 @@ try {
   //   loader.style.display = 'none'; // Hide loader
   // });
 } catch (error) {
-  nrvideo.Core.sendError({ message: error.message });
+  console.error(error.message);
 }
