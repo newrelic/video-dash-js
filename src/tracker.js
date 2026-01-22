@@ -113,14 +113,10 @@ export default class DashTracker extends nrvideo.VideoTracker {
     }
   }
 
-  /* 
-  Not able to find any field to show renditionName
   getRenditionName() {
     let qlty = this.getDashBitrate('video');
-    console.log('qlty', qlty);
-    // return qlty?.label;
+    return qlty?.label;
   }
-  */
 
   /** Override to return renidtion actual width (before re-scaling). */
   getRenditionWidth() {
