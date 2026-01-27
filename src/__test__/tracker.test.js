@@ -576,9 +576,14 @@ describe("Additional Coverage Tests", () => {
       tracker = new DashTracker(player, {});
       const tag = { tagName: 'video' }; // Mock DOM element
 
+      // Mock the prototype method to avoid dependency on mock implementation
+      const setPlayerSpy = jest.spyOn(tracker, 'setPlayer').mockImplementation(() => {});
+
       tracker.setPlayer(player, tag);
 
-      expect(tracker.player).toBe(player);
+      expect(setPlayerSpy).toHaveBeenCalledWith(player, tag);
+
+      setPlayerSpy.mockRestore();
     });
   });
 

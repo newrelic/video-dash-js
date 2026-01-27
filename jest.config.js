@@ -7,8 +7,8 @@ module.exports = {
   transformIgnorePatterns: ["node_modules/(?!@shotgunjed)/"],
   testMatch: ["**/__tests__/**/*.js?(x)", "**/?(*.)+(spec|test).js?(x)"],
 
-  // Use video-core mock for testing
+  // Use video-core published mock for testing
   moduleNameMapper: {
-    "^@newrelic/video-core$": "<rootDir>/src/__mocks__/@newrelic-video-core.mock.js"
+    "^@newrelic/video-core$": "@newrelic/video-core/__mock__.js"
   }
 };
