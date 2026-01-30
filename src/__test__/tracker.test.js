@@ -14,6 +14,7 @@ const player = {
   getSource: jest.fn(),
   getCurrentTrackFor: jest.fn(),
   setPlayer: jest.fn(),
+  getVersion: jest.fn().mockReturnValue("4.0.0"),
 };
 
 const videoBitrateList = [
@@ -505,13 +506,188 @@ describe("Tracker Event Handlers", () => {
   });
 
   it("should call sendError on onError", () => {
-    const event = { detail: "error" };
+    const event = {
+      error: {
+        code: "ERROR_CODE_123",
+        message: "Test error message"
+      }
+    };
     tracker.onError(event);
-    expect(tracker.sendError).toHaveBeenCalledWith(event.detail);
+    expect(tracker.sendError).toHaveBeenCalledWith({
+      errorCode: "ERROR_CODE_123",
+      errorMessage: "Test error message"
+    });
   });
 
   it("should call sendEnd on onEnded", () => {
     tracker.onEnded();
     expect(tracker.sendEnd).toHaveBeenCalled();
+  });
+});
+
+// Additional tests to reach >90% coverage
+describe("Additional Coverage Tests", () => {
+  let tracker;
+  let playerWithoutVersion;
+  let playerWithVersion5;
+
+  beforeEach(() => {
+    // Player without getVersion support (for error path testing)
+    playerWithoutVersion = {
+      ...player,
+      getVersion: jest.fn().mockReturnValue(null)
+    };
+
+    // Player with version 5+ (for version-specific branch testing)
+    playerWithVersion5 = {
+      ...player,
+      getVersion: jest.fn().mockReturnValue("5.1.0"),
+      getCurrentRepresentationForType: jest.fn().mockReturnValue({
+        absoluteIndex: 1,
+        mediaInfo: {
+          bitrateList: [
+            { bitrate: 500000, bandwidth: 500000 },
+            { bitrate: 1000000, bandwidth: 1000000 }
+          ]
+        }
+      }),
+      time: jest.fn().mockReturnValue(120.5),
+      getPlaybackRate: jest.fn().mockReturnValue(1.5),
+      duration: jest.fn().mockReturnValue(3600),
+      getCurrentTrackFor: jest.fn().mockImplementation(() => {
+        throw new Error("Track not available");
+      })
+    };
+  });
+
+  describe("Constructor Error Handling", () => {
+    it("should handle missing getVersion support", () => {
+      const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+      tracker = new DashTracker(playerWithoutVersion, {});
+
+      expect(consoleErrorSpy).toHaveBeenCalledWith('player.getVersion is not supported by dash js');
+      expect(tracker.majorVersion).toBeUndefined();
+
+      consoleErrorSpy.mockRestore();
+    });
+
+    it("should call setPlayer method", () => {
+      tracker = new DashTracker(player, {});
+      const tag = { tagName: 'video' }; // Mock DOM element
+
+      // Mock the prototype method to avoid dependency on mock implementation
+      const setPlayerSpy = jest.spyOn(tracker, 'setPlayer').mockImplementation(() => {});
+
+      tracker.setPlayer(player, tag);
+
+      expect(setPlayerSpy).toHaveBeenCalledWith(player, tag);
+
+      setPlayerSpy.mockRestore();
+    });
+  });
+
+  describe("Instrumentation Methods", () => {
+    beforeEach(() => {
+      tracker = new DashTracker(player, {});
+    });
+
+    it("should return correct player name", () => {
+      expect(tracker.getPlayerName()).toBe('Dash');
+    });
+
+    it("should return instrumentation name", () => {
+      expect(tracker.getInstrumentationName()).toBe('Dash');
+    });
+
+    it("should return instrumentation version", () => {
+      expect(tracker.getInstrumentationVersion()).toBe(tracker.getPlayerVersion());
+    });
+
+    it("should return instrumentation provider", () => {
+      expect(tracker.getInstrumentationProvider()).toBe('New Relic');
+    });
+  });
+
+  describe("Player State Methods", () => {
+    beforeEach(() => {
+      tracker = new DashTracker(playerWithVersion5, {});
+    });
+
+    it("should return playback rate", () => {
+      expect(tracker.getPlayrate()).toBe(1.5);
+      expect(playerWithVersion5.getPlaybackRate).toHaveBeenCalled();
+    });
+
+    it("should return playhead in milliseconds", () => {
+      expect(tracker.getPlayhead()).toBe(120500); // 120.5 * 1000
+      expect(playerWithVersion5.time).toHaveBeenCalled();
+    });
+
+    it("should return duration", () => {
+      expect(tracker.getDuration()).toBe(3600);
+      expect(playerWithVersion5.duration).toHaveBeenCalled();
+    });
+  });
+
+  describe("Error Handling in getTrack", () => {
+    beforeEach(() => {
+      tracker = new DashTracker(playerWithVersion5, {});
+    });
+
+    it("should handle errors in getTrack and log them", () => {
+      const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
+
+      const result = tracker.getTrack();
+
+      expect(consoleLogSpy).toHaveBeenCalledWith('error', 'Track not available');
+      expect(result).toBeUndefined();
+
+      consoleLogSpy.mockRestore();
+    });
+  });
+
+  describe("Version 5+ Branch Testing", () => {
+    beforeEach(() => {
+      tracker = new DashTracker(playerWithVersion5, {});
+    });
+
+    it("should use version 5+ logic in getDashBitrate", () => {
+      const result = tracker.getDashBitrate('video');
+
+      expect(playerWithVersion5.getCurrentRepresentationForType).toHaveBeenCalledWith('video');
+      expect(result).toEqual({ bitrate: 1000000, bandwidth: 1000000 });
+    });
+
+    it("should use version 5+ logic in getRenditionBitrate", () => {
+      // Mock getDashBitrate to return a result with bandwidth
+      tracker.getDashBitrate = jest.fn().mockReturnValue({ bandwidth: 1000000 });
+
+      const result = tracker.getRenditionBitrate();
+
+      expect(result).toBe(1000000);
+    });
+  });
+
+  describe("getRenditionName Coverage", () => {
+    beforeEach(() => {
+      tracker = new DashTracker(player, {});
+    });
+
+    it("should return label from getDashBitrate result", () => {
+      tracker.getDashBitrate = jest.fn().mockReturnValue({ label: "HD" });
+
+      const result = tracker.getRenditionName();
+
+      expect(result).toBe("HD");
+    });
+
+    it("should return undefined when getDashBitrate returns no label", () => {
+      tracker.getDashBitrate = jest.fn().mockReturnValue({});
+
+      const result = tracker.getRenditionName();
+
+      expect(result).toBeUndefined();
+    });
   });
 });
