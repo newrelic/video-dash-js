@@ -3,7 +3,7 @@ name: Create Release PR
 on:
   push:
     branches:
-    - master
+    - main
 
 permissions:
   contents: write
@@ -13,7 +13,7 @@ permissions:
 jobs:
   create-release-pr:
     name: Create Release PR
-    # Only run on push to master, skip if it's a release PR merge
+    # Only run on push to main, skip if it's a release PR merge
     if: github.event_name == 'push' && !contains(github.event.head_commit.message, 'chore(release):')
     runs-on: ubuntu-latest
     steps:
@@ -120,7 +120,7 @@ jobs:
         RELEASE_BRANCH: ${{ steps.prepare-release.outputs.release_branch }}
       run: |
         # Check if PR already exists for this branch
-        EXISTING_PR=$(gh pr list --head "$RELEASE_BRANCH" --base master --json number --jq '.[0].number' || echo "")
+        EXISTING_PR=$(gh pr list --head "$RELEASE_BRANCH" --base main --json number --jq '.[0].number' || echo "")
 
         if [ -n "$EXISTING_PR" ]; then
           echo "PR #$EXISTING_PR already exists for branch $RELEASE_BRANCH"
@@ -132,7 +132,7 @@ jobs:
         CHANGELOG_EXCERPT=$(sed -n "/## \[$NEW_VERSION\]/,/## \[/p" CHANGELOG.md | sed '$ d' || echo "See CHANGELOG.md for details")
 
         gh pr create \
-          --base master \
+          --base main \
           --head "$RELEASE_BRANCH" \
           --title "chore(release): $NEW_VERSION" \
           --body "Automated release PR
