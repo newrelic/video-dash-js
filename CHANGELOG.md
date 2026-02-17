@@ -2,6 +2,12 @@
 
 ### Update
 
+## [4.0.1] - 2026-02-17
+
+### Bug Fixes
+
+- **contentBitrate Calculation:** Updated `contentBitrate` to use measured average throughput via `getAverageThroughput()` instead of manifest bandwidth. This provides more accurate real-time bitrate measurements representing actual content consumption rate during playback. Falls back to manifest bitrate if throughput measurement is unavailable.
+
 ## [4.0.0] - 2025-07-28
 
 ### Changed
