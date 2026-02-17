@@ -6,8 +6,8 @@ const player = new dashjs.MediaPlayer().create();
 
 player.events = dashjs.MediaPlayer.events;
 
-const url = 'https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd';
-//const url = 'https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd';
+// const url = 'https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd';
+const url = 'https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd';
 
 /*
   for live stream:
@@ -30,13 +30,15 @@ try {
   // // Make sure the player object is accessible globally if needed
   // window.player = player;
 
-  options = {
+  const options = {
     info: {
-      beacon: 'XXXXXXXXXXX',
-      licenseKey: 'XXXXXXXXXXXXX',
-      applicationID: 'XXXXXXX',
+      beacon: 'xxxxxxxxxxxxx',
+      applicationID: 'xxxxxxxxxxxxx',
+      licenseKey: 'xxxxxxxxxxxxx',
     },
   };
+
+  // Initialize your player with new relic Tracker to send data
 
   const tracker = new DashTracker(player, options);
 

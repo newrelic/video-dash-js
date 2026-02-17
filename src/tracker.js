@@ -99,6 +99,37 @@ export default class DashTracker extends nrvideo.VideoTracker {
     }
   }
 
+  getBitrate() {
+    return this.getContentBitratePlayback();
+  }
+
+  // Measures: Actual content consumption rate during playback
+  getContentBitratePlayback() {
+    try {
+      // For dash.js, we can use getAverageThroughput() which provides
+      // the measured download throughput
+      if (typeof this.player.getAverageThroughput === 'function') {
+        const throughput = this.player.getAverageThroughput('video');
+        if (throughput && throughput > 0) {
+          return throughput;
+        }
+      }
+
+      // Fallback: Calculate from current quality bitrate
+      // This is less accurate as it's the manifest target, not actual throughput
+      const currentBitrate = this.getDashBitrate('video');
+      if (currentBitrate) {
+        if (this.majorVersion >= 5) {
+          return currentBitrate?.bandwidth;
+        }
+        return currentBitrate?.bitrate;
+      }
+    } catch (error) {
+      /* do nothing */
+    }
+    return null;
+  }
+
   getRenditionBitrate() {
     try {
       const currentBitrate = this.getDashBitrate('video');
