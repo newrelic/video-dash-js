@@ -56,11 +56,37 @@ const options = {
     applicationID: 'xxxxxxx',
     licenseKey: 'xxxxxxxxxxx',
   },
+  config: {
+    qoeAggregate: false, // Optional: Enable/disable QoE (Quality of Experience) event aggregation (default: false)
+    qoeIntervalFactor: 2, // Optional: Include QoE aggregate events once every N harvest cycles; must be a whole number (e.g. 2, not 2.1) (default: 1)
+  },
 };
 
 // Initialize the DashTracker
 const tracker = new DashTracker(player, options);
+```
 
+### Configuration Options
+
+- **qoeAggregate** (boolean, optional, default: `false`): Controls whether Quality of Experience (QoE) events are aggregated and sent to New Relic. Set to `true` to enable QoE event collection.
+
+- **qoeIntervalFactor** (number, optional, default: `1`): Controls how frequently QoE aggregate events are included in harvest cycles. A value of `1` includes them on every cycle; a value of `N` includes them once every N cycles. Must be a positive integer — invalid values default to `1`. QoE events are always included on the first and final harvest cycles regardless of this setting.
+
+### Bitrate Metrics
+
+The tracker captures the following bitrate-related attributes:
+
+| Attribute | Description |
+| --- | --- |
+| `contentBitrate` | Video-only bitrate (in bps) from the currently active video track, excluding audio. |
+| `contentManifestBitrate` | Maximum combined (video + audio) bitrate (in bps) as declared in the MPD manifest. |
+| `contentMeasuredBitrate` | Network bandwidth (in bps) estimated by the player's ABR algorithm. |
+| `contentDownloadBitrate` | Effective download throughput (in bps), calculated from the latest video segment request. |
+| `contentRenditionBitrate` | Total variant bandwidth (video + audio, in bps) of the currently active rendition. |
+
+### Additional APIs
+
+```javascript
 // For setting userId
 tracker.setUserId('userId');
 
