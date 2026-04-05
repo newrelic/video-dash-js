@@ -79,9 +79,9 @@ The tracker captures the following bitrate-related attributes:
 | Attribute | Description |
 | --- | --- |
 | `contentBitrate` | Video-only bitrate (in bps) from the currently active video track, excluding audio. |
-| `contentManifestBitrate` | Maximum combined (video + audio) bitrate (in bps) as declared in the MPD manifest. |
-| `contentMeasuredBitrate` | Network bandwidth (in bps) estimated by the player's ABR algorithm. |
-| `contentDownloadBitrate` | Effective download throughput (in bps), calculated from the latest video segment request. |
+| `contentManifestBitrate` | Maximum combined (video + audio) bitrate (in bps) as declared in the MPD manifest. Represents the highest possible stream variant. |
+| `contentMeasuredBitrate` | Network bandwidth (in bps) estimated by the player's ABR algorithm, based on measured download throughput. |
+| `contentDownloadBitrate` | Effective download throughput (in bps), calculated as (bytesDownloaded × 8) / downloadTime from the latest video segment request. |
 | `contentRenditionBitrate` | Total variant bandwidth (video + audio, in bps) of the currently active rendition. |
 
 ### Additional APIs

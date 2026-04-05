@@ -5,6 +5,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
   constructor(player, options) {
     super(player, options);
     this.versionString = player.getVersion();
+    this.lastDownloadBitrate = null;
     nrvideo.Core.addTracker(this, options);
 
     if (this.versionString) {
@@ -175,26 +176,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
 
   // contentDownloadBitrate: Effective download throughput (bytesDownloaded × 8 / time)
   getDownloadBitrate() {
-    try {
-      const dashMetrics = this.player.getDashMetrics();
-      if (!dashMetrics) return null;
-
-      const currentRequest = dashMetrics.getCurrentHttpRequest('video');
-      if (currentRequest && currentRequest.trace && currentRequest.trace.length > 0) {
-        let totalBytes = 0;
-        let totalDurationMs = 0;
-        for (const trace of currentRequest.trace) {
-          totalBytes += (trace.b && trace.b[0]) || 0;
-          totalDurationMs += trace.d || 0;
-        }
-        if (totalDurationMs > 0) {
-          return Math.round((totalBytes * 8 * 1000) / totalDurationMs);
-        }
-      }
-    } catch (error) {
-      /* do nothing */
-    }
-    return null;
+    return this.lastDownloadBitrate;
   }
 
   // contentRenditionBitrate: Total variant bandwidth (video + audio) of the active rendition
@@ -250,6 +232,20 @@ export default class DashTracker extends nrvideo.VideoTracker {
     return this.player.getAutoPlay();
   }
 
+
+  updateDownloadBitrate(request){
+     if(!request) return null;
+
+     const bytes = request.bytesLoaded || 0;
+    const downloadTimeMs = request.requestEndDate.getTime() - request.requestStartDate.getTime();
+    if(bytes > 0 && downloadTimeMs > 0){
+      const bitrate = (bytes*8*1000) / downloadTimeMs;
+      this.lastDownloadBitrate = bitrate;
+      return;
+    }
+
+  }
+
   registerListeners() {
     nrvideo.Log.debugCommonVideoEvents(this.player, [
       null,
@@ -281,6 +277,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.onBufferingStalled = this.onBufferingStalled.bind(this);
     this.onBufferingLoaded = this.onBufferingLoaded.bind(this);
     this.onAdaptation = this.onAdaptation.bind(this);
+    this.onFragmentLoadingCompleted = this.onFragmentLoadingCompleted.bind(this);
 
     this.player.on('streamInitialized', this.onReady);
     this.player.on('playbackMetaDataLoaded', this.onDownload);
@@ -296,6 +293,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.player.on('bufferStalled', this.onBufferingStalled);
     this.player.on('bufferLoaded', this.onBufferingLoaded);
     this.player.on('qualityChangeRendered', this.onAdaptation);
+    this.player.on('fragmentLoadingCompleted', this.onFragmentLoadingCompleted);
   }
 
   unregisterListeners() {
@@ -313,6 +311,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.player.off('bufferStalled', this.onBufferingStalled);
     this.player.off('bufferLoaded', this.onBufferingLoaded);
     this.player.off('qualityChangeRendered', this.onAdaptation);
+    this.player.off('fragmentLoadingCompleted', this.onFragmentLoadingCompleted);
   }
 
   onReady() {
@@ -321,6 +320,12 @@ export default class DashTracker extends nrvideo.VideoTracker {
 
   onDownload(e) {
     this.sendDownload({ state: e.type });
+  }
+
+  onFragmentLoadingCompleted(e) {
+    if (e.mediaType === 'video' && e.request.type === 'MediaSegment') {
+      this.updateDownloadBitrate(e.request);
+    }
   }
 
   onPlay() {
