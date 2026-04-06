@@ -1,14 +1,9 @@
-import nrvideo from '@newrelic/video-core'
-import Tracker from "../tracker";
+import DashTracker from "../tracker";
 
 const exportedModule = require("../index");
 
-describe("nrvideo DashTracker Assignment", () => {
-  it("should assign Tracker to nrvideo.DashTracker", () => {
-    expect(nrvideo.DashTracker).toBe(Tracker);
-  });
-
-  it("should export the modified nrvideo object", () => {
-    expect(exportedModule).toBe(nrvideo);
+describe("DashTracker Module Export", () => {
+  it("should export DashTracker as default", () => {
+    expect(exportedModule.default).toBe(DashTracker);
   });
 });

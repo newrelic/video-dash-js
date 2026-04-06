@@ -14,6 +14,7 @@ const player = {
   getSource: jest.fn(),
   getCurrentTrackFor: jest.fn(),
   setPlayer: jest.fn(),
+  getVersion: jest.fn().mockReturnValue('4.0.0'),
 };
 
 const videoBitrateList = [
@@ -239,32 +240,6 @@ describe("Bitrate Properties for Dash.js", () => {
     });
   });
 
-  describe("getRenditionName", () => {
-    it("should return the label of the current video rendition", () => {
-      const currentBitrate = {
-        bitrate: 987654,
-        height: 360,
-        mediaType: "video",
-        qualityIndex: 2,
-        scanType: null,
-        width: 854,
-        label: "360p",
-      };
-      tracker.getDashBitrate = jest.fn().mockReturnValue(currentBitrate);
-
-      const result = tracker.getRenditionName();
-
-      expect(result).toBe(currentBitrate.label);
-    });
-
-    it("should return undefined if the current video rendition is not available", () => {
-      tracker.getDashBitrate = jest.fn().mockReturnValue(undefined);
-
-      const result = tracker.getRenditionName();
-
-      expect(result).toBeUndefined();
-    });
-  });
 });
 
 describe("registerListeners", () => {
@@ -505,9 +480,9 @@ describe("Tracker Event Handlers", () => {
   });
 
   it("should call sendError on onError", () => {
-    const event = { detail: "error" };
+    const event = { error: { code: 1, message: "error" } };
     tracker.onError(event);
-    expect(tracker.sendError).toHaveBeenCalledWith(event.detail);
+    expect(tracker.sendError).toHaveBeenCalledWith({ errorCode: event.error.code, errorMessage: event.error.message });
   });
 
   it("should call sendEnd on onEnded", () => {
