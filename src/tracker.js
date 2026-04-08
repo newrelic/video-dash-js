@@ -5,6 +5,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
   constructor(player, options) {
     super(player, options);
     this.versionString = player.getVersion();
+    this.lastDownloadBitrate = null;
     nrvideo.Core.addTracker(this, options);
 
     if (this.versionString) {
@@ -68,7 +69,6 @@ export default class DashTracker extends nrvideo.VideoTracker {
       const track = this.player?.getCurrentTrackFor('audio');
       return track;
     } catch (error) {
-      console.log('error', error.message);
       /* do nothing */
     }
   }
@@ -85,44 +85,73 @@ export default class DashTracker extends nrvideo.VideoTracker {
   getDashBitrate(type) {
     try {
       if (this.majorVersion >= 5) {
-        const bitrtaeAbsoluteIndex =
-          this.player.getCurrentRepresentationForType(type).absoluteIndex;
-
-        return this.player.getCurrentRepresentationForType(type).mediaInfo
-          ?.bitrateList[bitrtaeAbsoluteIndex];
+        return this.player.getCurrentRepresentationForType(type) || null;
       } else {
-        const videoBitrate = this.player.getQualityFor(type);
-        return this.player.getBitrateInfoListFor(type)[videoBitrate];
+        const qualityIndex = this.player.getQualityFor(type);
+        return this.player.getBitrateInfoListFor(type)[qualityIndex];
       }
+    } catch (error) {
+      return null;
+    }
+  }                                                                                                                                         
+
+  // contentBitrate: Video-only bitrate from the active track (excludes audio)
+  getBitrate() {
+    try {
+      const currentBitrate = this.getDashBitrate('video');
+      if (this.majorVersion >= 5) {
+        return currentBitrate?.bandwidth ?? null;
+      }
+      return currentBitrate?.bitrate ?? null;
     } catch (error) {
       /* do nothing */
     }
+    return null;
   }
 
-  getBitrate() {
-    return this.getContentBitratePlayback();
-  }
-
-  // Measures: Actual content consumption rate during playback
-  getContentBitratePlayback() {
+  // contentManifestBitrate: Max combined (video + audio) bitrate defined in the MPD
+  getManifestBitrate() {
     try {
-      // For dash.js, we can use getAverageThroughput() which provides
-      // the measured download throughput
-      if (typeof this.player.getAverageThroughput === 'function') {
-        const throughput = this.player.getAverageThroughput('video');
-        if (throughput && throughput > 0) {
-          return throughput;
+      if (this.majorVersion >= 5) {
+        if (typeof this.player.getRepresentationsByType === 'function') {
+          const videoReps = this.player.getRepresentationsByType('video');
+          const audioReps = this.player.getRepresentationsByType('audio');
+          let maxVideo = 0;
+          if (videoReps && videoReps.length > 0) {
+            for (const rep of videoReps) {
+              const br = rep.bandwidth || 0;
+              if (br > maxVideo) maxVideo = br;
+            }
+          }
+          let maxAudio = 0;
+          if (audioReps && audioReps.length > 0) {
+            for (const rep of audioReps) {
+              const br = rep.bandwidth || 0;
+              if (br > maxAudio) maxAudio = br;
+            }
+          }
+          const total = maxVideo + maxAudio;
+          return total > 0 ? total : null;
         }
-      }
-
-      // Fallback: Calculate from current quality bitrate
-      // This is less accurate as it's the manifest target, not actual throughput
-      const currentBitrate = this.getDashBitrate('video');
-      if (currentBitrate) {
-        if (this.majorVersion >= 5) {
-          return currentBitrate?.bandwidth;
+      } else {
+        const videoBitrateList = this.player.getBitrateInfoListFor('video');
+        const audioBitrateList = this.player.getBitrateInfoListFor('audio');
+        let maxVideo = 0;
+        if (videoBitrateList && videoBitrateList.length > 0) {
+          for (const info of videoBitrateList) {
+            const br = info.bitrate || 0;
+            if (br > maxVideo) maxVideo = br;
+          }
         }
-        return currentBitrate?.bitrate;
+        let maxAudio = 0;
+        if (audioBitrateList && audioBitrateList.length > 0) {
+          for (const info of audioBitrateList) {
+            const br = info.bitrate || 0;
+            if (br > maxAudio) maxAudio = br;
+          }
+        }
+        const total = maxVideo + maxAudio;
+        return total > 0 ? total : null;
       }
     } catch (error) {
       /* do nothing */
@@ -130,21 +159,27 @@ export default class DashTracker extends nrvideo.VideoTracker {
     return null;
   }
 
-  getRenditionBitrate() {
+  // contentSegmentDownloadBitrate: Network bandwidth estimated by the ABR algorithm
+  getSegmentDownloadBitrate() {
     try {
-      const currentBitrate = this.getDashBitrate('video');
-
-      if (this.majorVersion >= 5) {
-        return currentBitrate?.bandwidth;
+      if (typeof this.player.getAverageThroughput === 'function') {
+        const throughput = this.player.getAverageThroughput('video');
+        if (throughput && throughput > 0) {
+          return throughput * 1000; // convert kbps to bps
+        }
       }
-
-      return currentBitrate?.bitrate;
     } catch (error) {
-      /*  do nothing */
+      /* do nothing */
     }
+    return null;
   }
 
-  /* 
+  // contentNetworkDownloadBitrate: Effective download throughput (bytesDownloaded × 8 / time)
+  getNetworkDownloadBitrate() {
+    return this.lastDownloadBitrate;
+  }
+
+  /*
   Not able to find any field to show renditionName
   getRenditionName() {
     let qlty = this.getDashBitrate('video');
@@ -171,16 +206,26 @@ export default class DashTracker extends nrvideo.VideoTracker {
     return this.player.preload();
   }
 
-  getPlayhead() {
-    return this.player.time() * 1000; // in milliseconds
-  }
-
   isMuted() {
     return this.player.isMuted();
   }
 
   isAutoplayed() {
     return this.player.getAutoPlay();
+  }
+
+
+  updateDownloadBitrate(request){
+     if(!request) return null;
+
+     const bytes = request.bytesLoaded || 0;
+    const downloadTimeMs = request.requestEndDate.getTime() - request.requestStartDate.getTime();
+    if(bytes > 0 && downloadTimeMs > 0){
+      const bitrate = (bytes*8*1000) / downloadTimeMs;
+      this.lastDownloadBitrate = bitrate;
+      return;
+    }
+
   }
 
   registerListeners() {
@@ -214,6 +259,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.onBufferingStalled = this.onBufferingStalled.bind(this);
     this.onBufferingLoaded = this.onBufferingLoaded.bind(this);
     this.onAdaptation = this.onAdaptation.bind(this);
+    this.onFragmentLoadingCompleted = this.onFragmentLoadingCompleted.bind(this);
 
     this.player.on('streamInitialized', this.onReady);
     this.player.on('playbackMetaDataLoaded', this.onDownload);
@@ -229,6 +275,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.player.on('bufferStalled', this.onBufferingStalled);
     this.player.on('bufferLoaded', this.onBufferingLoaded);
     this.player.on('qualityChangeRendered', this.onAdaptation);
+    this.player.on('fragmentLoadingCompleted', this.onFragmentLoadingCompleted);
   }
 
   unregisterListeners() {
@@ -246,6 +293,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.player.off('bufferStalled', this.onBufferingStalled);
     this.player.off('bufferLoaded', this.onBufferingLoaded);
     this.player.off('qualityChangeRendered', this.onAdaptation);
+    this.player.off('fragmentLoadingCompleted', this.onFragmentLoadingCompleted);
   }
 
   onReady() {
@@ -254,6 +302,12 @@ export default class DashTracker extends nrvideo.VideoTracker {
 
   onDownload(e) {
     this.sendDownload({ state: e.type });
+  }
+
+  onFragmentLoadingCompleted(e) {
+    if (e.mediaType === 'video' && e.request.type === 'MediaSegment') {
+      this.updateDownloadBitrate(e.request);
+    }
   }
 
   onPlay() {

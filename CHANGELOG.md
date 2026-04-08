@@ -2,6 +2,31 @@
 
 ### Update
 
+## [4.1.0] - 2026-03-11
+
+### Added
+
+- **contentManifestBitrate:** Maximum combined (video + audio) bitrate from the MPD manifest.
+- **contentMeasuredBitrate:** Network bandwidth estimated by the player's ABR algorithm.
+- **contentDownloadBitrate:** Effective download throughput calculated from video segment request data.
+
+### Changed
+
+- **contentBitrate:** Now returns video-only bitrate from the active track (excludes audio).
+- **contentRenditionBitrate:** Now returns combined video + audio bandwidth of the active rendition.
+- **getDashBitrate():** Fixed v4 compatibility — version check now happens before calling v5-only APIs.
+- **getManifestBitrate():** Uses `getRepresentationsByType()` on v5+ and `getBitrateInfoListFor()` on v4.
+
+### Fixed
+
+- Removed duplicate `getPlayhead()` method definition.
+- Removed `console.log` from `getTrack()` error handler.
+
+### Documentation
+
+- Updated DATAMODEL.md with all five bitrate attribute definitions.
+- Updated README.md with QoE configuration options and bitrate metrics table.
+
 ## [4.0.1] - 2026-02-17
 
 ### Bug Fixes

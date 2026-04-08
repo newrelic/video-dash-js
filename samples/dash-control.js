@@ -7,7 +7,8 @@ const player = new dashjs.MediaPlayer().create();
 player.events = dashjs.MediaPlayer.events;
 
 // const url = 'https://bitmovin-a.akamaihd.net/content/sintel/sintel.mpd';
-const url = 'https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd';
+// const url = 'https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd';
+const url = "https://dash.akamaized.net/akamai/bbb_30fps/bbb_30fps.mpd";
 
 /*
   for live stream:
@@ -23,24 +24,32 @@ const url = "https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e8
 */
 
 try {
-  player.initialize(myPlayer, url, true);
-
+ 
   // console.lopg('player.extend', player.extend);
 
   // // Make sure the player object is accessible globally if needed
   // window.player = player;
 
-  const options = {
-    info: {
-      beacon: 'xxxxxxxxxxxxx',
-      applicationID: 'xxxxxxxxxxxxx',
-      licenseKey: 'xxxxxxxxxxxxx',
-    },
-  };
+ const options = {
+ info: {
+  "beacon": "beacon_url",
+  "applicationID": "your_application_id",
+  "licenseKey": "your_new_relic_license_key",
+}
+};
 
-  // Initialize your player with new relic Tracker to send data
+// Initialize your player with new relic Tracker to send data
 
-  const tracker = new DashTracker(player, options);
+ new DashTracker(player, options);
+
+ player.initialize(myPlayer, url, true);
+
+
+
+
+
+
+
 
   // Send custom action
 

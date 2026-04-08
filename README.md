@@ -1,110 +1,332 @@
 [![Community Project header](https://github.com/newrelic/opensource-website/raw/master/src/images/categories/Community_Project.png)](https://opensource.newrelic.com/oss-category/#community-project)
 
-# New Relic Dash Tracker Agent
+# New Relic Dash.js Tracker
 
-The New Relic Dash Tracker enhances your media applications by tracking video events, playback errors, and other activities, providing comprehensive insights into performance and user interactions.
+[![npm version](https://badge.fury.io/js/%40newrelic%2Fvideo-dash.svg)](https://badge.fury.io/js/%40newrelic%2Fvideo-dash)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
-- The Dash tracker is available as a ready-to-use JavaScript snippet for easy copy-paste integration.
-- New Relic Dash tracker auto-detects events emitted by Dash Player.
-- Ensure that the **Browser agent** is successfully instrumented before deploying the media tracker.
-- For questions and feedback on this package, please visit the [Explorer's Hub](https://discuss.newrelic.com), New Relic's community support forum.
-- Looking to contribute to the Player Name agent code base? See [DEVELOPING.md](./DEVELOPING.md) for instructions on building and testing the browser agent library, and Contributors.
+The New Relic Dash.js Tracker provides comprehensive video analytics for applications using Dash.js Player. Track video events, monitor playback quality, identify errors, and gain deep insights into user engagement and streaming performance for MPEG-DASH content.
 
-## Adding The Dash Tracker To Your Project With Placing Snippet Code From Onboarding
+## Features
 
-To integrate New Relic Tracker Agent into your web application effectively, Get Dash Tracker Sdk from Onboarding and Place it on top JS File
+- 🎯 **Automatic Event Detection** - Captures Dash.js player events automatically without manual instrumentation
+- 📊 **Comprehensive Bitrate Tracking** - Four distinct bitrate metrics for complete quality analysis
+- 🔄 **Multi-Version Support** - Compatible with both dash.js v4.x and v5.x
+- 📈 **QoE Metrics** - Quality of Experience aggregation for startup time, buffering, and playback quality
+- 🎨 **Event Segregation** - Organized event types: `VideoAction`, `VideoErrorAction`, `VideoCustomAction`
+- 🚀 **Easy Integration** - NPM package or direct script include
+- ⚡ **Real-Time Performance** - Network throughput and download bitrate monitoring
+- 🎬 **MPEG-DASH Specific** - Optimized for adaptive streaming with separate video/audio tracks
+
+## Table of Contents
+
+- [Installation](#installation)
+  - [Option 1: NPM/Yarn](#option-1-install-via-npmyarn)
+  - [Option 2: Direct Script Include](#option-2-direct-script-include-without-npm)
+- [Prerequisites](#prerequisites)
+- [Usage](#usage)
+- [Configuration Options](#configuration-options)
+- [API Reference](#api-reference)
+- [Bitrate Metrics](#bitrate-metrics)
+- [Data Model](#data-model)
+- [Support](#support)
+- [Contribute](#contribute)
+- [License](#license)
+
+## Installation
+
+### Option 1: Install via NPM/Yarn
+
+Install the package using your preferred package manager:
+
+**NPM:**
+```bash
+npm install @newrelic/video-dash
+```
+
+**Yarn:**
+```bash
+yarn add @newrelic/video-dash
+```
+
+### Option 2: Direct Script Include (Without NPM)
+
+For quick integration without a build system, include the tracker directly in your HTML:
 
 ```html
 <!DOCTYPE html>
-<html lang="en">
+<html>
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>New Relic Tracker Integration</title>
-
-    <!-- snippet code generated  -->
-    <script src="path/to/dash-tracker.js"></script>
+    <!-- Dash.js Player -->
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+    
+    <!-- New Relic Dash.js Tracker -->
+    <script src="path/to/newrelic-video-dash.min.js"></script>
   </head>
   <body>
-    <!-- Your HTML content -->
+    <video id="myVideo" controls width="640" height="480"></video>
+
+    <script>
+      // Initialize Dash.js player
+      var player = dashjs.MediaPlayer().create();
+      player.initialize(document.querySelector('#myVideo'), 'https://your-dash-manifest.mpd', true);
+
+      // Configure New Relic tracker with info from one.newrelic.com
+      const options = {
+        info: {
+          licenseKey: "YOUR_LICENSE_KEY",
+          beacon: "YOUR_BEACON_URL",
+          applicationID: "YOUR_APP_ID"
+        }
+      };
+
+      // Initialize tracker
+      const tracker = new DashTracker(player, options);
+    </script>
   </body>
 </html>
 ```
 
-## Adding the agent package to your project
+**Setup Steps:**
 
-To make the tracker available to your application, install via [NPM](https://docs.npmjs.com/cli/v8/commands/npm-install) or [Yarn](https://classic.yarnpkg.com/lang/en/docs/cli/install/).
+1. **Get Configuration** - Visit [one.newrelic.com](https://one.newrelic.com) and complete the video agent onboarding to obtain your credentials (`licenseKey`, `beacon`, `applicationID`)
+2. **Download Tracker** - Get `newrelic-video-dash.min.js` from:
+   - [GitHub Releases](https://github.com/newrelic/video-dash-js/releases) (recommended)
+   - Build from source: `npm run build` → `dist/umd/newrelic-video-dash.min.js`
+3. **Integrate** - Include the script in your HTML and initialize with your configuration
 
-```shell
-$ npm install @newrelic/video-dash
-```
+## Prerequisites
 
-```shell
-$ yarn add @newrelic/video-dash
-```
+Before using the tracker, ensure you have:
 
-## Instantiating the Dash Tracker
+- **New Relic Account** - Active New Relic account with valid application credentials (`beacon`, `applicationID`, `licenseKey`)
+- **Dash.js Player** - Version 4.x or 5.x integrated in your application
+
+> **Note:** This tracker is **standalone** and does **not** require the New Relic Browser agent. It communicates directly with New Relic using the credentials provided in the configuration.
+
+## Usage
+
+### Getting Your Configuration
+
+Before initializing the tracker, obtain your New Relic configuration:
+
+1. Log in to [one.newrelic.com](https://one.newrelic.com)
+2. Navigate to the video agent onboarding flow
+3. Copy your credentials: `licenseKey`, `beacon`, and `applicationID`
+
+### Basic Setup
 
 ```javascript
-//Add import statement
 import DashTracker from '@newrelic/video-dash';
 
-// Get Application info from onboarding steps of new relic
+// Initialize Dash.js player
+const player = dashjs.MediaPlayer().create();
+player.initialize(document.querySelector('#video'), manifestUrl, autoPlay);
+
+// Configure tracker with credentials from one.newrelic.com
 const options = {
   info: {
-    beacon: 'xxxxxxxxxx',
-    applicationID: 'xxxxxxx',
-    licenseKey: 'xxxxxxxxxxx',
-  },
+    licenseKey: 'YOUR_LICENSE_KEY',
+    beacon: 'YOUR_BEACON_URL',
+    applicationID: 'YOUR_APP_ID'
+  }
 };
 
-// Initialize the DashTracker
+// Initialize tracker
 const tracker = new DashTracker(player, options);
+```
 
-// For setting userId
-tracker.setUserId('userId');
+### Advanced Configuration
 
-// For Sending custom Attributes
+```javascript
+const options = {
+  info: {
+    licenseKey: 'YOUR_LICENSE_KEY',
+    beacon: 'YOUR_BEACON_URL',
+    applicationID: 'YOUR_APP_ID'
+  },
+  config: {
+    qoeAggregate: true,        // Enable QoE event aggregation
+    qoeIntervalFactor: 2       // Send QoE events every 2 harvest cycles
+  },
+  customData: {
+    contentTitle: 'My Video Title',
+    customPlayerName: 'MyCustomPlayer',
+    customAttribute: 'customValue'
+  }
+};
 
+const tracker = new DashTracker(player, options);
+```
+
+## Configuration Options
+
+### QoE (Quality of Experience) Settings
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `qoeAggregate` | boolean | `false` | Enable Quality of Experience event aggregation. Set to `true` to collect QoE metrics like startup time, buffering, and average bitrate. |
+| `qoeIntervalFactor` | number | `1` | Controls QoE event frequency. A value of `N` sends QoE events once every N harvest cycles. Must be a positive integer. QoE events are always included on first and final harvest cycles. |
+
+### Custom Data
+
+Add custom attributes to all events:
+
+```javascript
+customData: {
+  contentTitle: 'My Video Title',      // Override video title
+  customPlayerName: 'MyPlayer',        // Custom player identifier
+  customPlayerVersion: '1.0.0',        // Custom player version
+  userId: '12345',                     // User identifier
+  contentSeries: 'Season 1',           // Series information
+  // Add any custom attributes you need
+}
+```
+
+## API Reference
+
+### Core Methods
+
+#### `tracker.setUserId(userId)`
+Set a unique identifier for the current user.
+
+```javascript
+tracker.setUserId('user-12345');
+```
+
+#### `tracker.setHarvestInterval(milliseconds)`
+Configure how frequently data is sent to New Relic. Accepts values between 1000ms (1 second) and 300000ms (5 minutes).
+
+```javascript
+tracker.setHarvestInterval(30000); // Send data every 30 seconds
+```
+
+#### `tracker.sendCustom(actionName, state, attributes)`
+Send custom events with arbitrary attributes.
+
+```javascript
+tracker.sendCustom('VideoBookmarked', 'playing', {
+  timestamp: Date.now(),
+  position: player.time(),
+  userId: 'user-12345',
+  bookmarkId: 'bookmark-789'
+});
+```
+
+#### `tracker.sendOptions(options)`
+Update tracker configuration after initialization.
+
+```javascript
 tracker.sendOptions({
   customData: {
-    contentTitle: 'Override Existing Title',
-    customPlayerName: 'myGreatPlayer',
-    customPlayerVersion: '9.4.2',
+    contentTitle: 'New Video Title',
+    season: '1',
+    episode: '3'
+  }
+});
+```
+
+### Example: Complete Integration
+
+```javascript
+import DashTracker from '@newrelic/video-dash';
+
+// Initialize Dash.js player
+const player = dashjs.MediaPlayer().create();
+player.initialize(document.querySelector('#video'), manifestUrl, true);
+
+// Initialize tracker
+const tracker = new DashTracker(player, {
+  info: {
+    licenseKey: 'YOUR_LICENSE_KEY',
+    beacon: 'YOUR_BEACON_URL',
+    applicationID: 'YOUR_APP_ID'
   },
+  config: {
+    qoeAggregate: true
+  }
 });
 
-// For Sending custom Action with Attributes
+// Set user context
+tracker.setUserId('user-12345');
 
-tracker.sendCustom('CUSTOM_ACTION', 'state time', {
-  test1: 'value1',
-  test2: 'value2',
+// Configure reporting interval
+tracker.setHarvestInterval(30000);
+
+// Send custom events
+player.on('qualityChangeRendered', () => {
+  tracker.sendCustom('QualityChanged', 'playing', {
+    newQuality: player.getQualityFor('video'),
+    timestamp: Date.now()
+  });
 });
+```
 
-// For setting different harvest interval (1s to 5 mins)
-tracker.setHarvestInterval(40000); // setting for 40 secs
+## Bitrate Metrics
+
+The tracker captures four distinct bitrate metrics providing complete quality analysis:
+
+| Attribute | Description | Use Case |
+|-----------|-------------|----------|
+| `contentBitrate` | Video-only bitrate (in bps) from the currently active video track, excluding audio | Monitor actual video quality being delivered |
+| `contentManifestBitrate` | Maximum combined (video + audio) bitrate (in bps) as declared in the MPD manifest. Represents the highest possible stream variant | Understand maximum quality potential |
+| `contentSegmentDownloadBitrate` | Network bandwidth (in bps) estimated by the player's ABR algorithm, based on measured download throughput | Analyze ABR decision-making |
+| `contentNetworkDownloadBitrate` | Effective download throughput (in bps), calculated as (bytesDownloaded × 8) / downloadTime from the latest video segment request | Monitor real-time network performance |
+
+### Bitrate Monitoring Example
+
+```javascript
+// All bitrate metrics are automatically captured and sent with each event
+// Access them in New Relic Insights queries:
+
+// NRQL Query Examples:
+// SELECT average(contentNetworkDownloadBitrate) FROM VideoAction WHERE actionName = 'CONTENT_HEARTBEAT'
+// SELECT contentBitrate, contentSegmentDownloadBitrate FROM VideoAction WHERE actionName = 'CONTENT_RENDITION_CHANGE'
 ```
 
 ## Data Model
 
-To understand which actions and attributes are captured and emitted by the Dash Player under different event types, see [DataModel.md](./DATAMODEL.md).
+The tracker captures comprehensive video analytics across three event types:
+
+- **VideoAction** - Playback events (play, pause, buffer, seek, quality changes, heartbeats)
+- **VideoErrorAction** - Error events (playback failures, network errors, media errors)
+- **VideoCustomAction** - Custom events defined by your application
+
+**Full Documentation:** See [DATAMODEL.md](./DATAMODEL.md) for complete event and attribute reference.
 
 ## Support
 
-New Relic hosts and moderates an online forum where customers can interact with New Relic employees as well as other customers to get help and share best practices. Like all official New Relic open source projects, there's a related Community topic in the New Relic [Explorer's Hub](https://discuss.newrelic.com).
+Should you need assistance with New Relic products, you are in good hands with several support channels.
 
-We encourage you to bring your experiences and questions to the [Explorer's Hub](https://discuss.newrelic.com) where our community members collaborate on solutions and new ideas.
+If the issue has been confirmed as a bug or is a feature request, please file a GitHub issue.
 
-## Contributing
+### Support Channels
 
-We encourage your contributions to improve New Relic Dash Tracker! Keep in mind when you submit your pull request, you'll need to sign the CLA via the click-through using CLA-Assistant. You only have to sign the CLA one time per project. If you have any questions, or to execute our corporate CLA, required if your contribution is on behalf of a company, please drop us an email at opensource@newrelic.com.
+- [New Relic Documentation](https://docs.newrelic.com): Comprehensive guidance for using our platform
+- [New Relic Community](https://discuss.newrelic.com): The best place to engage in troubleshooting questions
+- [New Relic University](https://learn.newrelic.com): A range of online training for New Relic users of every level
+- [New Relic Technical Support](https://support.newrelic.com): 24/7/365 ticketed support. Read more about our [Technical Support Offerings](https://docs.newrelic.com/docs/licenses/license-information/general-usage-licenses/support-plan)
 
-**A note about vulnerabilities**
+## Contribute
+
+We encourage your contributions to improve the Dash.js Tracker! Keep in mind that when you submit your pull request, you'll need to sign the CLA via the click-through using CLA-Assistant. You only have to sign the CLA one time per project.
+
+If you have any questions, or to execute our corporate CLA (which is required if your contribution is on behalf of a company), drop us an email at opensource@newrelic.com.
+
+For more details on how best to contribute, see [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+### A note about vulnerabilities
 
 As noted in our [security policy](../../security/policy), New Relic is committed to the privacy and security of our customers and their data. We believe that providing coordinated disclosure by security researchers and engaging with the security community are important means to achieve our security goals.
 
-If you believe you have found a security vulnerability in this project or any of New Relic's products or websites, we welcome and greatly appreciate you reporting it to New Relic through [our bug bounty program](https://docs.newrelic.com/docs/security/security-privacy/information-security/report-security-vulnerabilities/).
+If you believe you have found a security vulnerability in this project or any of New Relic's products or websites, we welcome and greatly appreciate you reporting it to New Relic through our [bug bounty program](https://docs.newrelic.com/docs/security/security-privacy/information-security/report-security-vulnerabilities/).
+
+If you would like to contribute to this project, review [these guidelines](./CONTRIBUTING.md).
+
+To all contributors, we thank you! Without your contribution, this project would not be what it is today.
 
 ## License
 
-New Relic Dash Tracker is licensed under the [Apache 2.0](http://apache.org/licenses/LICENSE-2.0.txt) License.
+The Dash.js Tracker is licensed under the [Apache 2.0](http://apache.org/licenses/LICENSE-2.0.txt) License.
+
+The Dash.js Tracker also uses source code from third-party libraries. Full details on which libraries are used and the terms under which they are licensed can be found in the [third-party notices document](./THIRD_PARTY_NOTICES.md).
