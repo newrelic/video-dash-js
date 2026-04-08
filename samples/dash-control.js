@@ -30,13 +30,12 @@ try {
   // // Make sure the player object is accessible globally if needed
   // window.player = player;
 
-
-const options = {
-  info: {
-    "beacon": "YOUR_BEACON_URL",
-    "applicationID": "YOUR_APP_ID",
-    "licenseKey": "YOUR_LICENSE_KEY"
-  }
+ const options = {
+ info: {
+  "beacon": "beacon_url",
+  "applicationID": "your_application_id",
+  "licenseKey": "your_new_relic_license_key",
+}
 };
 
 // Initialize your player with new relic Tracker to send data

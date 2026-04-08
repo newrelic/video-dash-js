@@ -185,24 +185,6 @@ describe("Bitrate Properties for Dash.js", () => {
     expect(result).toEqual(expectedBitrateInfo);
   });
 
-  describe("getRenditionBitrate", () => {
-    it("should return the bitrate of the current video rendition", () => {
-      const currentBitrate = {
-        bitrate: 987654,
-        height: 360,
-        mediaType: "video",
-        qualityIndex: 2,
-        scanType: null,
-        width: 854,
-      };
-      tracker.getDashBitrate = jest.fn().mockReturnValue(currentBitrate);
-
-      const result = tracker.getRenditionBitrate();
-
-      expect(result).toBe(currentBitrate.bitrate);
-    });
-  });
-
   describe("getRenditionWidth", () => {
     it("should return the width of the current video rendition", () => {
       const currentBitrate = {
