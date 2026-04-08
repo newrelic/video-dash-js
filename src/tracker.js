@@ -93,7 +93,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     } catch (error) {
       return null;
     }
-  }
+  }                                                                                                                                         
 
   // contentBitrate: Video-only bitrate from the active track (excludes audio)
   getBitrate() {
@@ -159,8 +159,8 @@ export default class DashTracker extends nrvideo.VideoTracker {
     return null;
   }
 
-  // contentMeasuredBitrate: Network bandwidth estimated by the ABR algorithm
-  getMeasuredBitrate() {
+  // contentSegmentDownloadBitrate: Network bandwidth estimated by the ABR algorithm
+  getSegmentDownloadBitrate() {
     try {
       if (typeof this.player.getAverageThroughput === 'function') {
         const throughput = this.player.getAverageThroughput('video');
@@ -174,30 +174,12 @@ export default class DashTracker extends nrvideo.VideoTracker {
     return null;
   }
 
-  // contentDownloadBitrate: Effective download throughput (bytesDownloaded × 8 / time)
-  getDownloadBitrate() {
+  // contentNetworkDownloadBitrate: Effective download throughput (bytesDownloaded × 8 / time)
+  getNetworkDownloadBitrate() {
     return this.lastDownloadBitrate;
   }
 
-  // contentRenditionBitrate: Total variant bandwidth (video + audio) of the active rendition
-  getRenditionBitrate() {
-    try {
-      const videoBitrate = this.getDashBitrate('video');
-      const audioBitrate = this.getDashBitrate('audio');
-      let total = 0;
-      if (this.majorVersion >= 5) {
-        total = (videoBitrate?.bandwidth || 0) + (audioBitrate?.bandwidth || 0);
-      } else {
-        total = (videoBitrate?.bitrate || 0) + (audioBitrate?.bitrate || 0);
-      }
-      return total > 0 ? total : null;
-    } catch (error) {
-      /* do nothing */
-    }
-    return null;
-  }
-
-  /* 
+  /*
   Not able to find any field to show renditionName
   getRenditionName() {
     let qlty = this.getDashBitrate('video');
