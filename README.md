@@ -89,11 +89,8 @@ For quick integration without a build system, include the tracker directly in yo
 
 **Setup Steps:**
 
-1. **Get Configuration** - Visit [one.newrelic.com](https://one.newrelic.com) and complete the video agent onboarding to obtain your credentials (`licenseKey`, `beacon`, `applicationID`)
-2. **Download Tracker** - Get `newrelic-video-dash.min.js` from:
-   - [GitHub Releases](https://github.com/newrelic/video-dash-js/releases) (recommended)
-   - Build from source: `npm run build` → `dist/umd/newrelic-video-dash.min.js`
-3. **Integrate** - Include the script in your HTML and initialize with your configuration
+1. **Get Configuration** - Visit [one.newrelic.com](https://one.newrelic.com) and complete the streaming video & ads   onboarding steps to obtain your credentials (`licenseKey`, `beacon`, `applicationID`) and code snippet.
+2. **Integrate** - Include the script in your HTML and initialize with your configuration
 
 ## Prerequisites
 
