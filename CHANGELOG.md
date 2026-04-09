@@ -2,6 +2,18 @@
 
 ### Update
 
+## [4.1.1] - 2026-04-09
+
+### Fixed
+
+- Bitrate metrics calculations and reporting improvements.
+- Test cases updated for better coverage and reliability.
+- CI/CD workflow updated to latest version.
+
+### Documentation
+
+- Updated README.md with improved documentation and examples.
+
 ## [4.1.0] - 2026-03-11
 
 ### Added
