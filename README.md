@@ -25,6 +25,7 @@ The New Relic Dash.js Tracker provides comprehensive video analytics for applica
   - [Option 2: Direct Script Include](#option-2-direct-script-include-without-npm)
 - [Prerequisites](#prerequisites)
 - [Usage](#usage)
+- [Best Practices](#best-practices)
 - [Configuration Options](#configuration-options)
 - [API Reference](#api-reference)
 - [Bitrate Metrics](#bitrate-metrics)
@@ -155,6 +156,149 @@ const options = {
 
 const tracker = new DashTracker(player, options);
 ```
+
+## Best Practices
+
+### 1. Setting `contentTitle`
+
+The `contentTitle` attribute will display a value if your video metadata contains title information. If the metadata does not include a title, `contentTitle` will not be populated. For best results, ensure you explicitly set this attribute during initialization:
+
+```javascript
+const tracker = new DashTracker(player, {
+  info: {
+    licenseKey: 'YOUR_LICENSE_KEY',
+    beacon: 'YOUR_BEACON_URL',
+    applicationID: 'YOUR_APP_ID'
+  },
+  customData: {
+    contentTitle: 'My Video Title'  // Explicitly set from your metadata
+  }
+});
+```
+
+If your title changes dynamically (e.g., playlist or queue):
+
+```javascript
+tracker.sendOptions({
+  customData: {
+    contentTitle: 'New Video Title'
+  }
+});
+```
+
+### 2. Using `applicationId` and `userId` for Data Correlation
+
+To correlate video analytics data with your upstream streaming application, always configure `applicationId` and `userId`. This enables you to:
+
+- Connect video performance data with user profiles
+- Track user journeys across your application
+- Debug issues for specific users
+
+```javascript
+const tracker = new DashTracker(player, {
+  info: {
+    licenseKey: 'YOUR_LICENSE_KEY',
+    beacon: 'YOUR_BEACON_URL',
+    applicationID: 'my-streaming-app'  // Your application identifier
+  },
+  customData: {
+    contentTitle: 'Video Title',
+    userId: 'user-12345'  // Set during initialization
+  }
+});
+
+// Or set userId separately
+tracker.setUserId('user-12345');
+```
+
+### 3. Adding Custom Attributes for Your Deployment
+
+Add custom attributes unique to your deployment to improve data aggregation and analysis:
+
+```javascript
+const tracker = new DashTracker(player, {
+  info: {
+    licenseKey: 'YOUR_LICENSE_KEY',
+    beacon: 'YOUR_BEACON_URL',
+    applicationID: 'YOUR_APP_ID'
+  },
+  customData: {
+    // Required for identification
+    contentTitle: videoMetadata.title,
+    userId: currentUser.id,
+    
+    // Custom attributes for your deployment
+    subscriptionTier: 'premium',      // User subscription level
+    contentProvider: 'studio-abc',    // Content source
+    region: 'us-west-2',              // Geographic region
+    cdnProvider: 'cloudflare',        // CDN being used
+    deviceType: 'desktop',            // Device category
+    appVersion: '2.1.0',              // Your app version
+    campaign: 'spring-promo'          // Marketing campaign
+  }
+});
+```
+
+**Use these attributes in New Relic queries:**
+
+```sql
+-- Analyze by subscription tier
+SELECT count(*) FROM VideoAction WHERE actionName = 'CONTENT_START' 
+FACET subscriptionTier SINCE 1 day ago
+
+-- Monitor by region
+SELECT average(contentNetworkDownloadBitrate) FROM VideoAction 
+FACET region SINCE 1 hour ago
+```
+
+### 4. Gradual Rollout with Feature Flags
+
+When deploying to production, use feature flags to enable the tracker gradually. This helps you:
+
+- Validate data collection without impacting all users
+- Monitor performance impact at scale
+- Catch issues before full deployment
+- Control monitoring costs
+
+```javascript
+// Example using a feature flag
+const rolloutPercentage = 5; // Start with 5% of users
+
+function shouldEnableTracking(userId) {
+  // Simple percentage-based rollout
+  const hash = userId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return (hash % 100) < rolloutPercentage;
+}
+
+const player = dashjs.MediaPlayer().create();
+player.initialize(document.querySelector('#video'), manifestUrl, true);
+
+// Only initialize tracker if user is in rollout
+if (shouldEnableTracking(currentUser.id)) {
+  const tracker = new DashTracker(player, {
+    info: {
+      licenseKey: 'YOUR_LICENSE_KEY',
+      beacon: 'YOUR_BEACON_URL',
+      applicationID: 'YOUR_APP_ID'
+    },
+    customData: {
+      contentTitle: videoMetadata.title,
+      userId: currentUser.id,
+      rolloutGroup: `${rolloutPercentage}%`  // Track which rollout group
+    }
+  });
+}
+```
+
+**Recommended Rollout Schedule:**
+
+| Phase | Percentage | Duration | Validation |
+|-------|-----------|----------|------------|
+| Initial | 5% | 2-3 days | Verify data flowing to New Relic |
+| Early | 15% | 3-5 days | Check data quality and performance |
+| Expansion | 25% | 5-7 days | Validate across device types |
+| Majority | 50% | 1-2 weeks | Monitor at scale |
+| Full | 100% | Ongoing | Complete deployment |
 
 ## Configuration Options
 

@@ -31,11 +31,11 @@ try {
   // window.player = player;
 
  const options = {
- info: {
-  "beacon": "beacon_url",
-  "applicationID": "your_application_id",
-  "licenseKey": "your_new_relic_license_key",
-}
+    info: {
+    licenseKey: 'YOUR_LICENSE_KEY',
+    beacon: 'bam.nr-data.net',
+    applicationID: 'YOUR_APPLICATION_ID',
+  },
 };
 
 // Initialize your player with new relic Tracker to send data
@@ -105,3 +105,4 @@ try {
 } catch (error) {
   console.error(error.message);
 }
+

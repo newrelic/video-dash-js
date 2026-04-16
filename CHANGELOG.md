@@ -2,6 +2,18 @@
 
 ### Update
 
+## [4.1.2] - 2026-04-16
+
+### Documentation
+
+- **Best Practices Guide:** Added comprehensive best practices section to README.md covering:
+  - Setting `contentTitle` attribute with metadata handling guidance
+  - Using `applicationId` and `userId` for data correlation with upstream applications
+  - Adding custom attributes for deployment-specific data aggregation
+  - Gradual rollout strategy using feature flags (5% → 15% → 25% → 50% → 100%)
+- Enhanced implementation examples with production deployment patterns
+- Added NRQL query examples for custom attribute analysis
+
 ## [4.1.1] - 2026-04-09
 
 ### Fixed
