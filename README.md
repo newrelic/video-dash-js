@@ -320,6 +320,8 @@ customData: {
 }
 ```
 
+> **Note:** There are reserved keywords used for default attributes (see [DATAMODEL.md](./DATAMODEL.md) for the complete list). Do not use these reserved keywords as custom attribute names, as they will be dropped.
+
 > **Limit:** The maximum total number of custom attributes per event is **150**. Any attributes beyond this limit will be dropped.
 
 ## API Reference
