@@ -13,6 +13,9 @@ on:
         type: boolean
         default: true
 
+permissions:
+  contents: read
+
 env:
   # --- Agent-specific config (change these when reusing for other agents) ---
   AGENT_REPO: newrelic/video-dash-js
