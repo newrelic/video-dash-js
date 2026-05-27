@@ -18,6 +18,8 @@ env:
   AGENT_REPO: newrelic/video-dash-js
   AGENT_NAME: Dash JS
   AGENT_SLUG: dashjs
+  AGENT_CATEGORY: browser
+  AGENT_SUBJECT: Streaming Video & Ads for Browser
   # --- Shared docs config (same for all streaming browser agents) ---
   DOCS_FOLDER: src/content/docs/release-notes/streaming-browser-release-notes
 
@@ -72,7 +74,7 @@ jobs:
           version="${tag#v}"
           today=$(date -u "+%Y-%m-%d")
           fileDate=$(date -u "+%y-%m-%d")
-          releaseFile="${{ env.DOCS_FOLDER }}/streaming-browser-agent-${{ env.AGENT_SLUG }}-${fileDate}.mdx"
+          releaseFile="${{ env.DOCS_FOLDER }}/streaming-${{ env.AGENT_CATEGORY }}-agent-${{ env.AGENT_SLUG }}-${fileDate}.mdx"
           echo "version=${version}" >> "$GITHUB_OUTPUT"
           echo "releaseFile=${releaseFile}" >> "$GITHUB_OUTPUT"
           echo "fileDate=${fileDate}" >> "$GITHUB_OUTPUT"
@@ -87,7 +89,7 @@ jobs:
           echo "File: ${{ steps.mdx.outputs.releaseFile }}"
           echo ""
           printf '%s\n' '---'
-          printf '%s\n' 'subject: Streaming Video & Ads for Browser'
+          printf '%s\n' 'subject: ${{ env.AGENT_SUBJECT }}'
           printf "title: Media agent for ${{ env.AGENT_NAME }} v%s\n" "${{ steps.mdx.outputs.version }}"
           printf "releaseDate: '%s'\n" "${{ steps.mdx.outputs.today }}"
           printf "version: %s\n" "${{ steps.mdx.outputs.version }}"
@@ -118,7 +120,7 @@ jobs:
 
           {
             printf '%s\n' '---'
-            printf '%s\n' 'subject: Streaming Video & Ads for Browser'
+            printf '%s\n' 'subject: ${{ env.AGENT_SUBJECT }}'
             printf "title: Media agent for ${{ env.AGENT_NAME }} v%s\n" "${version}"
             printf "releaseDate: '%s'\n" "${today}"
             printf "version: %s\n" "${version}"
