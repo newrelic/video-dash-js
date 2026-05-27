@@ -18,7 +18,6 @@ env:
   AGENT_REPO: newrelic/video-dash-js
   AGENT_NAME: Dash JS
   AGENT_SLUG: dashjs
-  AGENT_TITLE: Dash JS
   # --- Shared docs config (same for all streaming browser agents) ---
   DOCS_FOLDER: src/content/docs/release-notes/streaming-browser-release-notes
 
@@ -89,10 +88,10 @@ jobs:
           echo ""
           printf '%s\n' '---'
           printf '%s\n' 'subject: Streaming Video & Ads for Browser'
-          printf "title: Media agent for ${{ env.AGENT_TITLE }} v%s\n" "${{ steps.mdx.outputs.version }}"
+          printf "title: Media agent for ${{ env.AGENT_NAME }} v%s\n" "${{ steps.mdx.outputs.version }}"
           printf "releaseDate: '%s'\n" "${{ steps.mdx.outputs.today }}"
           printf "version: %s\n" "${{ steps.mdx.outputs.version }}"
-          printf "metaDescription: Release notes for Media agent for ${{ env.AGENT_TITLE }} version %s\n" "${{ steps.mdx.outputs.version }}"
+          printf "metaDescription: Release notes for Media agent for ${{ env.AGENT_NAME }} version %s\n" "${{ steps.mdx.outputs.version }}"
           printf '%s\n' 'category: ${{ env.AGENT_NAME }}'
           printf '%s\n' '---'
           printf '\n'
@@ -110,7 +109,7 @@ jobs:
           fileDate="${{ steps.mdx.outputs.fileDate }}"
           releaseFile="${{ steps.mdx.outputs.releaseFile }}"
           branchName="add-${{ env.AGENT_SLUG }}-release-notes-$(date -u '+%y-%m-%d')"
-          summary="Add release notes for ${{ env.AGENT_TITLE }} agent v${version}"
+          summary="Add release notes for ${{ env.AGENT_NAME }} agent v${version}"
 
           if [[ -e "${releaseFile}" ]]; then
             echo "File '${releaseFile}' already exists. Nothing to do."
@@ -120,10 +119,10 @@ jobs:
           {
             printf '%s\n' '---'
             printf '%s\n' 'subject: Streaming Video & Ads for Browser'
-            printf "title: Media agent for ${{ env.AGENT_TITLE }} v%s\n" "${version}"
+            printf "title: Media agent for ${{ env.AGENT_NAME }} v%s\n" "${version}"
             printf "releaseDate: '%s'\n" "${today}"
             printf "version: %s\n" "${version}"
-            printf "metaDescription: Release notes for Media agent for ${{ env.AGENT_TITLE }} version %s\n" "${version}"
+            printf "metaDescription: Release notes for Media agent for ${{ env.AGENT_NAME }} version %s\n" "${version}"
             printf '%s\n' 'category: ${{ env.AGENT_NAME }}'
             printf '%s\n' '---'
             printf '\n'
@@ -140,4 +139,4 @@ jobs:
             --base develop \
             --head "${branchName}" \
             --title "feat: ${summary}" \
-            --body "Automated PR: release notes for ${{ env.AGENT_TITLE }} agent v${version}."
+            --body "Automated PR: release notes for ${{ env.AGENT_NAME }} agent v${version}."
