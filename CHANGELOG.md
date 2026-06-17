@@ -2,6 +2,16 @@
 
 ### Update
 
+## [4.1.2] - 2026-06-18
+
+### Added
+
+- **getBitrateByQualityIndex():** New method to retrieve bitrate information by quality index for both dash.js v4 and v5.
+
+### Changed
+
+- **onAdaptation():** Enhanced to extract and pass old and new bitrate values to `sendRenditionChanged()` for better rendition change tracking.
+
 ## [4.1.0] - 2026-03-11
 
 ### Added

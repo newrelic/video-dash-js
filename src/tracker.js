@@ -228,6 +228,27 @@ export default class DashTracker extends nrvideo.VideoTracker {
 
   }
 
+  getBitrateByQualityIndex(type, qualityIndex) {
+    try {
+      if (qualityIndex == null || qualityIndex < 0) return null;
+
+      if (this.majorVersion >= 5) {
+        const representations = this.player.getRepresentationsByType(type);
+        if (representations && representations[qualityIndex]) {
+          return representations[qualityIndex].bandwidth ?? null;
+        }
+      } else {
+        const bitrateList = this.player.getBitrateInfoListFor(type);
+        if (bitrateList && bitrateList[qualityIndex]) {
+          return bitrateList[qualityIndex].bitrate ?? null;
+        }
+      }
+      return null;
+    } catch (error) {
+      return null;
+    }
+  }
+
   registerListeners() {
     nrvideo.Log.debugCommonVideoEvents(this.player, [
       null,
@@ -319,8 +340,12 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.sendStart();
   }
 
-  onAdaptation() {
-    this.sendRenditionChanged();
+  onAdaptation(e) {
+    const oldBitrate = this.getBitrateByQualityIndex('video', e.oldQuality);
+    const newBitrate = this.getBitrateByQualityIndex('video', e.newQuality);
+    console.log("oldBitrate", oldBitrate);
+    console.log("newBitrate", newBitrate);
+    this.sendRenditionChanged({oldBitrate, newBitrate});
   }
 
   onBufferingStalled() {
