@@ -343,8 +343,6 @@ export default class DashTracker extends nrvideo.VideoTracker {
   onAdaptation(e) {
     const oldBitrate = this.getBitrateByQualityIndex('video', e.oldQuality);
     const newBitrate = this.getBitrateByQualityIndex('video', e.newQuality);
-    console.log("oldBitrate", oldBitrate);
-    console.log("newBitrate", newBitrate);
     this.sendRenditionChanged({oldBitrate, newBitrate});
   }
 
