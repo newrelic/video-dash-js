@@ -215,17 +215,14 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
 
-  updateDownloadBitrate(request){
-     if(!request) return null;
+  updateDownloadBitrate(request) {
+    if (!request || !request.requestStartDate || !request.requestEndDate) return;
 
-     const bytes = request.bytesLoaded || 0;
+    const bytes = request.bytesLoaded || 0;
     const downloadTimeMs = request.requestEndDate.getTime() - request.requestStartDate.getTime();
-    if(bytes > 0 && downloadTimeMs > 0){
-      const bitrate = (bytes*8*1000) / downloadTimeMs;
-      this.lastDownloadBitrate = bitrate;
-      return;
+    if (bytes > 0 && downloadTimeMs > 0) {
+      this.lastDownloadBitrate = (bytes * 8 * 1000) / downloadTimeMs;
     }
-
   }
 
   getBitrateByQualityIndex(type, qualityIndex) {
