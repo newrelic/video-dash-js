@@ -21,3 +21,5 @@ coverage/
 
 # ignore agent.js
 samples/agent.js
+
+*.tgz
