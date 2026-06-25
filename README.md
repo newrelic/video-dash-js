@@ -111,7 +111,7 @@ Before initializing the tracker, obtain your New Relic configuration:
 2. Navigate to the video agent onboarding flow
 3. Copy your credentials: `licenseKey`, `beacon`, and `applicationID`
 
-### Browser Setup
+### Browser Player Setup
 
 Import from the `/browser` subpath — this build includes only the browser agent pipeline and excludes all connected-device (Vega) code, keeping the bundle lean.
 
@@ -184,17 +184,8 @@ const onSurfaceViewCreated = (surfaceHandle) => {
       endpoint:         'US',                 // 'US' | 'EU' | 'STAGING'
       deviceInfo,                             // optional but recommended
     },
-    config: {
-      qoeAggregate:      true,
-      qoeIntervalFactor: 1,
-      obfuscate: [
-        { regex: /your-domain\.com\/[^\s"]+/, replacement: 'your-domain.com/[REDACTED]' },
-        { regex: /My Video Title/, replacement: '[TITLE_REDACTED]' },
-      ],
-    },
-    customData: {
-      contentTitle: 'My Video Title',
-    },
+    config: { qoeAggregate: true, qoeIntervalFactor: 1 },
+    customData: { contentTitle: 'Vega Stream' },
   });
   tracker.current.setUserId('YOUR_USER_ID');
 };
