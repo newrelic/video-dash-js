@@ -103,15 +103,13 @@ Before using the tracker, ensure you have:
 
 ## Usage
 
-### Getting Your Configuration
+### Browser Player Setup
 
-Before initializing the tracker, obtain your New Relic configuration:
+**Obtain your credentials:**
 
 1. Log in to [one.newrelic.com](https://one.newrelic.com)
 2. Navigate to the video agent onboarding flow
 3. Copy your credentials: `licenseKey`, `beacon`, and `applicationID`
-
-### Browser Player Setup
 
 Import from the `/browser` subpath — this build includes only the browser agent pipeline and excludes all connected-device (Vega) code, keeping the bundle lean.
 
@@ -145,7 +143,13 @@ tracker.setUserId('YOUR_USER_ID');
 
 ### Vega Setup (Fire TV)
 
-For deployments targeting Amazon Vega or Fire TV (Kepler runtime), import from the `/vega` subpath and use `VegaTracker`. The configuration shape is different — `applicationToken` + `endpoint` instead of license key + beacon, plus an optional `deviceInfo` block carrying runtime device identity.
+For deployments targeting Amazon Vega or Fire TV (Kepler runtime), import from the `/vega` subpath and use `VegaTracker`. The `info` object uses `applicationToken` and `endpoint` specific to the Vega pipeline, plus an optional `deviceInfo` block carrying runtime device identity.
+
+**Obtain your credentials:**
+
+1. Log in to [one.newrelic.com](https://one.newrelic.com)
+2. Navigate to the video agent onboarding flow
+3. Copy your `applicationToken` and your `accountId`
 
 DashTracker registers all events on the Dash.js `MediaPlayer` event system — no `tag` is needed on Vega either. Initialise inside `onSurfaceViewCreated` so the tracker is created after the surface is ready, and store it in a `useRef` so it can be disposed on cleanup.
 
