@@ -1,3 +1,18 @@
+# [4.2.0](https://github.com/newrelic/video-dash-js/compare/v4.1.2...v4.2.0) (2026-07-28)
+
+
+### Bug Fixes
+
+* Update Read Me ([cfcf7b2](https://github.com/newrelic/video-dash-js/commit/cfcf7b2ff302f93504130f443f44d549aa1ee625))
+* Update terser plugin ([9f46253](https://github.com/newrelic/video-dash-js/commit/9f46253ef658fcf01345af93a751291298c5571b))
+* Updated ReadME ([91b34ca](https://github.com/newrelic/video-dash-js/commit/91b34ca69363141fadb03a720894446f0c6fe56f))
+
+
+### Features
+
+* Update semantic version ([2ff734e](https://github.com/newrelic/video-dash-js/commit/2ff734ee7ecf8a296da8ee89714ecc30021d1926))
+* Vega Video Monitoring support ([e621c72](https://github.com/newrelic/video-dash-js/commit/e621c7248282713efd90ba0987440dcec6a43644))
+
 # CHANGELOG
 
 ### Update
