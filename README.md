@@ -103,54 +103,136 @@ Before using the tracker, ensure you have:
 
 ## Usage
 
-### Getting Your Configuration
+### Browser Player Setup
 
-Before initializing the tracker, obtain your New Relic configuration:
+**Obtain your credentials:**
 
 1. Log in to [one.newrelic.com](https://one.newrelic.com)
 2. Navigate to the video agent onboarding flow
 3. Copy your credentials: `licenseKey`, `beacon`, and `applicationID`
 
-### Basic Setup
+Import from the `/browser` subpath — this build includes only the browser agent pipeline and excludes all connected-device (Vega) code, keeping the bundle lean.
+
+Dash.js `player.initialize()` is synchronous — the tracker can be created immediately after, no `tag` needed. DashTracker registers all events on the Dash.js `MediaPlayer` event system, not on the underlying video element.
 
 ```javascript
-import DashTracker from '@newrelic/video-dash';
+import DashTracker from '@newrelic/video-dash/browser';
 
-// Initialize Dash.js player
+// Initialize Dash.js player — initialize() is synchronous.
 const player = dashjs.MediaPlayer().create();
-player.initialize(document.querySelector('#video'), manifestUrl, autoPlay);
+player.initialize(document.querySelector('#video'), manifestUrl, true);
 
-// Configure tracker with credentials from one.newrelic.com
-const options = {
+// Initialize tracker immediately — no tag needed.
+const tracker = new DashTracker(player, {
   info: {
-    licenseKey: 'YOUR_LICENSE_KEY',
-    beacon: 'YOUR_BEACON_URL',
-    applicationID: 'YOUR_APP_ID'
-  }
+    licenseKey:    'YOUR_LICENSE_KEY',
+    beacon:        'YOUR_BEACON_URL',
+    applicationID: 'YOUR_APP_ID',
+  },
+  config: {
+    qoeAggregate:      true,
+    qoeIntervalFactor: 2,
+  },
+  customData: {
+    contentTitle: 'My Video Title',
+  },
+});
+
+tracker.setUserId('YOUR_USER_ID');
+```
+
+### Vega Setup (Fire TV)
+
+For deployments targeting Amazon Vega or Fire TV (Kepler runtime), import from the `/vega` subpath and use `VegaTracker`. The `info` object uses `applicationToken` and `endpoint` specific to the Vega pipeline, plus an optional `deviceInfo` block carrying runtime device identity.
+
+**Obtain your credentials:**
+
+1. Log in to [one.newrelic.com](https://one.newrelic.com)
+2. Navigate to the video agent onboarding flow
+3. Copy your `applicationToken` and your `accountId`
+
+DashTracker registers all events on the Dash.js `MediaPlayer` event system — no `tag` is needed on Vega either. Initialise inside `onSurfaceViewCreated` so the tracker is created after the surface is ready, and store it in a `useRef` so it can be disposed on cleanup.
+
+```javascript
+import { VegaTracker } from '@newrelic/video-dash/vega';
+import {
+  getDeviceId, getSystemVersion, getModel, getBrand,
+  getBuildIdSync, getBuildNumber,
+} from '@amazon-devices/react-native-device-info';
+
+const deviceInfo = {
+  uuid:               getDeviceId(),
+  osVersion:          getSystemVersion(),
+  deviceModel:        getModel(),
+  deviceManufacturer: getBrand(),
+  osBuild:            getBuildIdSync(),    // OS image build
+  appBuild:           getBuildNumber(),    // app build number
+  architecture:       'aarch64',
 };
 
-// Initialize tracker
-const tracker = new DashTracker(player, options);
+// Hold the tracker in a ref so it can be disposed on cleanup and accessed
+// for later API calls (setUserId, setHarvestInterval, etc.).
+const tracker = useRef(null);
+
+// Initialize VegaTracker inside onSurfaceViewCreated.
+// DashTracker uses the Dash.js MediaPlayer event system for all events,
+// so no explicit tag is needed.
+const onSurfaceViewCreated = (surfaceHandle) => {
+  videoPlayer.setSurfaceHandle(surfaceHandle);
+  videoPlayer.play();
+
+  tracker.current = new VegaTracker(player, {
+    info: {
+      accountId:        'YOUR_ACCOUNT_ID',
+      applicationToken: 'YOUR_NRMA_TOKEN',   // begins "AA…-NRMA"
+      endpoint:         'US',                 // 'US' | 'EU' | 'STAGING'
+      deviceInfo,                             // optional but recommended
+    },
+    config: { qoeAggregate: true, qoeIntervalFactor: 1 },
+    customData: { contentTitle: 'Vega Stream' },
+  });
+  tracker.current.setUserId('YOUR_USER_ID');
+};
+
+// Dispose the tracker when content ends to release event listeners.
+const onEnded = () => {
+  tracker.current?.dispose();
+  tracker.current = null;
+};
 ```
+
+#### `info.deviceInfo` field reference
+
+All sub-fields optional — missing values fall back to the defaults baked into the SDK.
+
+| Field | Recommended source | Falls back to |
+| --- | --- | --- |
+| `uuid` | `getDeviceId()` | `"00000000-0000-0000-0000-000000000000"` |
+| `osVersion` | `getSystemVersion()` | `"1.0"` |
+| `deviceModel` | `getModel()` | `"VegaDevice"` |
+| `deviceManufacturer` | `getBrand()` | `"Amazon"` |
+| `osBuild` | `getBuildIdSync()` — **OS image build** | `"1"` |
+| `appBuild` | `getBuildNumber()` — **app build number** | `"1"` |
+| `architecture` | `'aarch64'` | `"aarch64"` |
 
 ### Advanced Configuration
 
 ```javascript
 const options = {
   info: {
-    licenseKey: 'YOUR_LICENSE_KEY',
-    beacon: 'YOUR_BEACON_URL',
-    applicationID: 'YOUR_APP_ID'
+    licenseKey:    'YOUR_LICENSE_KEY',
+    beacon:        'YOUR_BEACON_URL',
+    applicationID: 'YOUR_APP_ID',
   },
   config: {
-    qoeAggregate: true,        // Enable QoE event aggregation
-    qoeIntervalFactor: 2       // Send QoE events every 2 harvest cycles
+    qoeAggregate:      true,
+    qoeIntervalFactor: 2,
   },
   customData: {
-    contentTitle: 'My Video Title',
+    contentTitle:     'My Video Title',
     customPlayerName: 'MyCustomPlayer',
-    customAttribute: 'customValue'
-  }
+    customAttribute:  'customValue',
+  },
 };
 
 const tracker = new DashTracker(player, options);
