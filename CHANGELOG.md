@@ -2,6 +2,19 @@
 
 ### Update
 
+## [5.0.0] - 2026-07-28
+
+### Added
+
+- **Vega / Fire TV Support:** Added `VegaTracker` for monitoring video playback on Amazon Fire TV (Vega OS) devices. Import via `@newrelic/video-dash/vega`.
+- **Browser Entry Point:** Added dedicated `@newrelic/video-dash/browser` import for browser environments.
+- **Device Info:** `VegaTracker` accepts optional `deviceInfo` to enrich sessions with device metadata (model, OS version, build, etc.).
+- **Regional Endpoint Selection:** Supports `endpoint` values `"US"`, `"EU"`, `"staging"`, and `"GOV"`.
+
+### Changed
+
+- **Package Version:** Bumped to `5.0.0` to reflect Vega platform support and the new browser/vega split entry points.
+
 ## [4.1.2] - 2026-06-18
 
 ### Added
