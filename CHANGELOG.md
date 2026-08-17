@@ -4,10 +4,6 @@
 
 - Updated the bundled `@newrelic/video-core` dependency to v5.0.1, adding Japan (JP) region collector support for Vega/Fire TV tracking.
 
-# CHANGELOG
-
-### Update
-
 ## [5.0.0] - 2026-07-28
 
 ### Added
