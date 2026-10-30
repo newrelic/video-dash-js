@@ -1,14 +1,12 @@
-## <small>5.0.2 (2026-10-30)</small>
-- **chore: align release notes and changelog format with docs template**
-- **chore: correct DATAMODEL.md attribute errors and omissions**
-- **chore: derive docs MDX filename date from release date, not workflow-run date**
-- **chore: pin dependencies and devDependencies to exact versions**
-- **chore: remove stray empty heading from CHANGELOG.md**
-- **chore: Update permission**
-- **chore: update release notes workflow to new docs standards (NR-619788)**
-- **chore: update release notes workflow to new docs standards (NR-619788) (#67)**
-- **chore: Update video-core-workflow name**
-- **fix: pin @newrelic/video-core to 5.1.1**
+## [5.0.2](https://github.com/newrelic/video-dash-js/compare/v5.0.1...v5.0.2) (2026-10-30)
+
+### Bug fixes
+
+- Updated the bundled `@newrelic/video-core` dependency to v5.1.1 and pinned it to this exact version (previously `^5.0.1`), so every build uses the same core release.
+
+### Changed
+
+- **Dependency pinning:** `dependencies` and `devDependencies` are now pinned to the exact versions already resolved in `package-lock.json`, so a fresh install no longer picks up newly published releases of build tooling.
 
 ## [5.0.1](https://github.com/newrelic/video-dash-js/compare/v5.0.0...v5.0.1) (2026-08-06)
 
