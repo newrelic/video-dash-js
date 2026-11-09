@@ -52,7 +52,28 @@ export default class DaiTracker extends nrvideo.VideoTracker {
 
     const StreamEvent = sdk.StreamEvent.Type;
 
-    this.eventHandlers = {
+    /**
+     * Every handler runs inside the IMA DAI SDK's own event dispatch, so an
+     * exception escaping one does not just lose an event — it reaches the SDK,
+     * which aborts the stream request and emits an empty ERROR. Observed
+     * against the live asset: nothing played at all.
+     *
+     * The specific cause found was a dash.js getter throwing a bare string
+     * before a source was attached, and that is fixed in DashTracker. This
+     * contains the whole class: the thrown value came from a third-party player
+     * via video-core's attribute collection, so the next such throw would break
+     * the customer's playback the same way. A telemetry library must never take
+     * the stream down with it.
+     */
+    const guard = (type, handler) => (event) => {
+      try {
+        handler(event);
+      } catch (error) {
+        nrvideo.Log.error(`DaiTracker: handler for '${type}' failed`, error);
+      }
+    };
+
+    const handlers = {
       [StreamEvent.LOADED]: this.onStreamLoaded.bind(this),
       [StreamEvent.STREAM_INITIALIZED]: this.onStreamInitialized.bind(this),
       [StreamEvent.ERROR]: this.onStreamError.bind(this),
@@ -80,6 +101,15 @@ export default class DaiTracker extends nrvideo.VideoTracker {
 
       [StreamEvent.CUEPOINTS_CHANGED]: this.onCuePointsChanged.bind(this),
     };
+
+    // Store the GUARDED references, so unregisterListeners removes the same
+    // functions that were registered.
+    this.eventHandlers = Object.fromEntries(
+      Object.entries(handlers).map(([type, handler]) => [
+        type,
+        guard(type, handler),
+      ])
+    );
 
     Object.entries(this.eventHandlers).forEach(([type, handler]) => {
       this.player.addEventListener(type, handler);

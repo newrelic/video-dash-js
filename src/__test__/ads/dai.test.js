@@ -1238,3 +1238,50 @@ describe('DaiTracker — content tracker delegation', () => {
     expect(tracker.getPlayerVersion()).toBe('unknown');
   });
 });
+
+describe('DaiTracker — never throws into the SDK dispatch', () => {
+  // FOUND IN THE BROWSER. A DaiTracker handler runs inside the IMA DAI SDK's
+  // own event dispatch. When onStreamInitialized threw — because video-core's
+  // attribute collection reached a dash.js getter that had no source yet — the
+  // exception escaped into the SDK, which aborted the stream request and
+  // emitted an empty ERROR. The live asset played nothing at all.
+  //
+  // The underlying getter is fixed in DashTracker, but this contains the whole
+  // class: the thrown value came from a third-party player through video-core,
+  // so any future throw there would again break the customer's playback. A
+  // telemetry library must never take the stream down with it.
+  it('swallows and logs an exception from any handler', () => {
+    const { sm, tracker } = makeTracker();
+
+    // Exactly what was observed: dash.js throws a bare string, not an Error.
+    tracker.sendDownload = () => {
+      throw 'You must first call initialize() and set a valid source before calling this method';
+    };
+
+    expect(() => sm._emit(StreamEventType.STREAM_INITIALIZED, {})).not.toThrow();
+    expect(nrvideo.Log.error).toHaveBeenCalled();
+  });
+
+  it('keeps handling later events after one handler threw', () => {
+    const { sm, tracker } = makeTracker();
+    tracker.sendAdBreakStart = () => {
+      throw new Error('attribute collection exploded');
+    };
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    // The break still opened: state is updated before the send.
+    expect(tracker.getCurrentAdBreak()).not.toBeNull();
+
+    tracker.sendAdQuartile = jest.fn();
+    sm._emit(StreamEventType.STARTED, startedEvent());
+    sm._emit(StreamEventType.FIRST_QUARTILE, {});
+    expect(tracker.sendAdQuartile).toHaveBeenCalledWith({ quartile: 1 });
+  });
+
+  it('still removes the wrapped listeners on unregisterListeners', () => {
+    const { sm, tracker } = makeTracker();
+    tracker.unregisterListeners();
+    expect(sm.removeEventListener).toHaveBeenCalledTimes(19);
+    expect(sm._listenerCount()).toBe(0);
+  });
+});

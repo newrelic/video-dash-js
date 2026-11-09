@@ -1059,3 +1059,89 @@ describe("content time conversion", () => {
     expect(tracker.getDuration()).toBe(60);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Player getters before a source is attached
+//
+// FOUND IN THE BROWSER, not by the unit suite. Under DAI, STREAM_INITIALIZED
+// arrives BEFORE the stitched manifest exists, so the tracker reports telemetry
+// while dash.js still has no source. In that state dash.js throws a bare STRING
+// (not an Error, so `err.message` is undefined) out of four getters:
+//
+//   player.time()       -> 'You must first call initialize() and set a valid source...'
+//   player.duration()   -> same
+//   player.isDynamic()  -> same
+//   player.getSource()  -> 'You must first call attachSource() with a valid source...'
+//
+// Uncaught, that exception escapes into the IMA DAI SDK's event dispatch, the
+// SDK aborts the stream request and emits an empty ERROR, and NOTHING PLAYS.
+// Observed end to end against the live asset.
+// ---------------------------------------------------------------------------
+describe("player getters before a source is attached", () => {
+  function sourcelessTracker() {
+    const boom = () => {
+      // dash.js throws a string, not an Error. Reproduced exactly.
+      throw 'You must first call initialize() and set a valid source before calling this method';
+    };
+    const p = {
+      on: jest.fn(),
+      off: jest.fn(),
+      getVersion: jest.fn().mockReturnValue("5.3.0"),
+      time: boom,
+      duration: boom,
+      isDynamic: boom,
+      getSource: boom,
+    };
+    const tracker = new DashTracker(p, {});
+    tracker.sendStart = jest.fn();
+    return tracker;
+  }
+
+  it("does not throw from getPlayhead when dash.js has no source", () => {
+    const tracker = sourcelessTracker();
+    expect(() => tracker.getPlayhead()).not.toThrow();
+    expect(tracker.getPlayhead()).toBe(0);
+  });
+
+  it("does not throw from getDuration when dash.js has no source", () => {
+    const tracker = sourcelessTracker();
+    expect(() => tracker.getDuration()).not.toThrow();
+    expect(tracker.getDuration()).toBeNull();
+  });
+
+  // Reported as unknown rather than guessed: DaiTracker.getStreamType() only
+  // treats a boolean as an answer, so null correctly yields a null streamType.
+  it("does not throw from isLive when dash.js has no source", () => {
+    const tracker = sourcelessTracker();
+    expect(() => tracker.isLive()).not.toThrow();
+    expect(tracker.isLive()).toBeNull();
+  });
+
+  it("does not throw from getSrc when dash.js has no source", () => {
+    const tracker = sourcelessTracker();
+    expect(() => tracker.getSrc()).not.toThrow();
+    expect(tracker.getSrc()).toBeNull();
+  });
+
+  // The whole point: a sourceless player must not stop CONTENT_START from
+  // being reported later, and must not throw out of the time-update handler.
+  it("does not throw from onTimeUpdated when dash.js has no source", () => {
+    const tracker = sourcelessTracker();
+    expect(() => tracker.onTimeUpdated()).not.toThrow();
+    expect(tracker.sendStart).not.toHaveBeenCalled();
+  });
+
+  it("still reports real values once a source exists", () => {
+    const tracker = guardedTracker(undefined, {
+      time: jest.fn(() => 12.5),
+      duration: jest.fn(() => 600),
+      isDynamic: jest.fn(() => true),
+      getSource: jest.fn(() => "https://example.test/s.mpd"),
+    });
+
+    expect(tracker.getPlayhead()).toBe(12500);
+    expect(tracker.getDuration()).toBe(600);
+    expect(tracker.isLive()).toBe(true);
+    expect(tracker.getSrc()).toBe("https://example.test/s.mpd");
+  });
+});

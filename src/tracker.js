@@ -99,12 +99,42 @@ export default class DashTracker extends nrvideo.VideoTracker {
     return 'New Relic';
   }
 
+  /**
+   * Reads a value from the dash.js player, tolerating the sourceless state.
+   *
+   * dash.js throws — a bare STRING, not an Error, so `err.message` is
+   * undefined — out of `time()`, `duration()`, `isDynamic()` and `getSource()`
+   * until a source has been attached. Under DAI that state is routine rather
+   * than exceptional: `STREAM_INITIALIZED` arrives before the stitched
+   * manifest exists, so telemetry is collected while the player still has
+   * nothing loaded.
+   *
+   * This matters far more than a missing attribute. The ad tracker's handlers
+   * run inside the IMA DAI SDK's own event dispatch, so an exception escaping
+   * attribute collection reaches the SDK, which aborts the stream request and
+   * emits an empty ERROR — observed against the live asset, where nothing
+   * played at all. A telemetry library must not take the stream down with it.
+   */
+  readFromPlayer(read, fallback = null) {
+    try {
+      const value = read();
+      return value === undefined ? fallback : value;
+    } catch (error) {
+      // Routine before attachSource, so this is not worth logging on every
+      // event; the absent attribute is the signal.
+      return fallback;
+    }
+  }
+
   isLive() {
-    return this.player.isDynamic();
+    const dynamic = this.readFromPlayer(() => this.player.isDynamic());
+    // null, not false: 'unknown' is the honest answer before a manifest is
+    // parsed, and DaiTracker.getStreamType() only accepts a boolean.
+    return typeof dynamic === 'boolean' ? dynamic : null;
   }
 
   getSrc() {
-    return this.player.getSource();
+    return this.readFromPlayer(() => this.player.getSource());
   }
 
   getPlayrate() {
@@ -112,7 +142,9 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   getPlayhead() {
-    return this.toContentTime(this.player.time()) * 1000; // in milliseconds
+    const time = this.readFromPlayer(() => this.player.time());
+    if (typeof time !== 'number' || !Number.isFinite(time)) return 0;
+    return this.toContentTime(time) * 1000; // in milliseconds
   }
 
   /**
@@ -147,7 +179,9 @@ export default class DashTracker extends nrvideo.VideoTracker {
     // defect, but fixing it multiplies contentDuration by 1000 for every
     // existing DASH customer, so it is blocked on a release decision and
     // tracked separately (spec 10.2). Do not add `* 1000` here.
-    return this.toContentTime(this.player.duration());
+    const duration = this.readFromPlayer(() => this.player.duration());
+    if (typeof duration !== 'number' || !Number.isFinite(duration)) return null;
+    return this.toContentTime(duration);
   }
 
   getTrack() {
