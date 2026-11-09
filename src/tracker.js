@@ -337,10 +337,47 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.sendStart();
   }
 
+  /**
+   * `qualityChangeRendered` carries two different payload shapes.
+   *
+   * Measured verbatim against dash.js 5.3.0 (2026-11-09):
+   *
+   *   Object.keys(e)                -> ['mediaType', 'oldRepresentation',
+   *                                     'newRepresentation', 'streamId', 'type']
+   *   e.newRepresentation.bandwidth -> 274000   // directly on the object
+   *   e.oldRepresentation           -> null     // on a stream's FIRST switch
+   *
+   * dash.js 4.7.4 instead sends integer `oldQuality` / `newQuality` indices
+   * that have to be resolved against `getBitrateInfoListFor`. On v5 both of
+   * those read `undefined`, so before this fix every v5 rendition change
+   * reported `oldBitrate: null, newBitrate: null`.
+   *
+   * Reading `bandwidth` off the representation is not just simpler than an
+   * index lookup, it is safer: a DAI stream is multi-period and an index
+   * resolves against whichever period is active, while the value carried in
+   * the payload cannot be attributed to the wrong period's list.
+   *
+   * The shape is feature-detected BEFORE falling back to `majorVersion`,
+   * because a player whose `getVersion()` returns nothing leaves
+   * `majorVersion` undefined and `undefined >= 5` is false — which would send
+   * a real v5 player down the v4 path and null its quality data for the whole
+   * session (spec 13.5).
+   */
   onAdaptation(e) {
-    const oldBitrate = this.getBitrateByQualityIndex('video', e.oldQuality);
-    const newBitrate = this.getBitrateByQualityIndex('video', e.newQuality);
-    this.sendRenditionChanged({oldBitrate, newBitrate});
+    const payload = e || {};
+    const hasRepresentations =
+      typeof payload.oldRepresentation !== 'undefined' ||
+      typeof payload.newRepresentation !== 'undefined';
+    const useRepresentations = hasRepresentations || this.majorVersion >= 5;
+
+    const oldBitrate = useRepresentations
+      ? payload.oldRepresentation?.bandwidth ?? null
+      : this.getBitrateByQualityIndex('video', payload.oldQuality);
+    const newBitrate = useRepresentations
+      ? payload.newRepresentation?.bandwidth ?? null
+      : this.getBitrateByQualityIndex('video', payload.newQuality);
+
+    this.sendRenditionChanged({ oldBitrate, newBitrate });
   }
 
   onBufferingStalled() {

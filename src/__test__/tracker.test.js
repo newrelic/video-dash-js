@@ -472,3 +472,109 @@ describe("Tracker Event Handlers", () => {
     expect(tracker.sendEnd).toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// dash.js 5 rendition payloads (spec 10.1.1)
+//
+// Shape measured verbatim against dash.js 5.3.0 on 2026-11-09:
+//   Object.keys(e) -> ['mediaType','oldRepresentation','newRepresentation',
+//                      'streamId','type']
+//   e.newRepresentation.bandwidth -> 274000   (directly on the object)
+//   e.oldRepresentation           -> null     (on a stream's FIRST switch)
+// oldQuality / newQuality are absent entirely, so the pre-existing code read
+// undefined for both and reported oldBitrate: null, newBitrate: null.
+// ---------------------------------------------------------------------------
+describe("onAdaptation across dash.js majors", () => {
+  function makeTracker(version, playerOverrides = {}) {
+    const p = {
+      on: jest.fn(),
+      off: jest.fn(),
+      getVersion: jest.fn().mockReturnValue(version),
+      getBitrateInfoListFor: jest.fn().mockReturnValue(videoBitrateList),
+      getRepresentationsByType: jest.fn().mockReturnValue(videoBitrateList),
+      ...playerOverrides,
+    };
+    const tracker = new DashTracker(p, {});
+    tracker.sendRenditionChanged = jest.fn();
+    return tracker;
+  }
+
+  it("reports rendition bitrates from a dash.js 4 qualityChangeRendered payload", () => {
+    const tracker = makeTracker("4.7.4");
+
+    tracker.onAdaptation({ oldQuality: 1, newQuality: 3, mediaType: "video" });
+
+    expect(tracker.sendRenditionChanged).toHaveBeenCalledWith({
+      oldBitrate: 512345,
+      newBitrate: 1234567,
+    });
+  });
+
+  it("reports rendition bitrates from a dash.js 5 qualityChangeRendered payload", () => {
+    const tracker = makeTracker("5.3.0");
+
+    tracker.onAdaptation({
+      mediaType: "video",
+      oldRepresentation: { bandwidth: 274000, width: 1280, height: 720, index: 0, id: "1" },
+      newRepresentation: { bandwidth: 2142460, width: 1920, height: 1080, index: 4, id: "5" },
+      streamId: "s1",
+      type: "qualityChangeRendered",
+    });
+
+    expect(tracker.sendRenditionChanged).toHaveBeenCalledWith({
+      oldBitrate: 274000,
+      newBitrate: 2142460,
+    });
+  });
+
+  // Measured: oldRepresentation is null on the very first switch of a stream,
+  // on both the VOD and live runs. This is the one new crash path the fix could
+  // introduce, so it gets its own test.
+  it("tolerates a null oldRepresentation on a stream's first switch", () => {
+    const tracker = makeTracker("5.3.0");
+
+    expect(() =>
+      tracker.onAdaptation({
+        mediaType: "video",
+        oldRepresentation: null,
+        newRepresentation: { bandwidth: 274000 },
+      })
+    ).not.toThrow();
+
+    expect(tracker.sendRenditionChanged).toHaveBeenCalledWith({
+      oldBitrate: null,
+      newBitrate: 274000,
+    });
+  });
+
+  // Review Focus 1. getVersion() returning nothing leaves majorVersion
+  // undefined, and `undefined >= 5` is false — so a version check alone sends a
+  // dash.js 5 player down the v4 path, where both reads are undefined and the
+  // rendition change reports null bitrates for the whole session (spec 13.5).
+  it("falls back to feature detection when getVersion() returns nothing", () => {
+    const tracker = makeTracker(undefined);
+    expect(tracker.majorVersion).toBeUndefined();
+
+    tracker.onAdaptation({
+      mediaType: "video",
+      oldRepresentation: { bandwidth: 274000 },
+      newRepresentation: { bandwidth: 400000 },
+    });
+
+    expect(tracker.sendRenditionChanged).toHaveBeenCalledWith({
+      oldBitrate: 274000,
+      newBitrate: 400000,
+    });
+  });
+
+  it("still reports null bitrates when neither payload shape is present", () => {
+    const tracker = makeTracker("5.3.0");
+
+    tracker.onAdaptation({ mediaType: "video" });
+
+    expect(tracker.sendRenditionChanged).toHaveBeenCalledWith({
+      oldBitrate: null,
+      newBitrate: null,
+    });
+  });
+});
