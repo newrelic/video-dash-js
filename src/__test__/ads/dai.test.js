@@ -455,3 +455,440 @@ describe('DaiTracker — stream errors', () => {
     expect(elapsed).toBeLessThan(400);
   });
 });
+
+// Helper for the ad-playback suites: an IMA Ad whose accessors can be
+// selectively present, absent or throwing.
+function createMockAd(overrides = {}) {
+  const {
+    adId = 'ad-1',
+    creativeId = 'creative-1',
+    duration = 10,
+    title = 'An ad',
+    podIndex = 0,
+    totalAds = 3,
+    throwing = false,
+  } = overrides;
+
+  if (throwing) {
+    const boom = () => {
+      throw new Error('accessor exploded');
+    };
+    return {
+      getAdId: boom,
+      getCreativeId: boom,
+      getDuration: boom,
+      getTitle: boom,
+      getDescription: boom,
+      getAdvertiserName: boom,
+      getDealId: boom,
+      getWrapperAdIds: boom,
+      getAdPodInfo: boom,
+    };
+  }
+
+  return {
+    getAdId: () => adId,
+    getCreativeId: () => creativeId,
+    getDuration: () => duration,
+    getTitle: () => title,
+    getDescription: () => 'A description',
+    getAdvertiserName: () => 'Advertiser',
+    getDealId: () => 'deal-1',
+    getWrapperAdIds: () => [],
+    // Deliberately NO getClickThroughUrl — the real DAI Ad has none.
+    getAdPodInfo: () => ({
+      getPodIndex: () => podIndex,
+      getTotalAds: () => totalAds,
+    }),
+    ...overrides.extra,
+  };
+}
+
+function startedEvent(adOverrides) {
+  return { getAd: () => createMockAd(adOverrides) };
+}
+
+function progressEvent(adProgressData) {
+  return { getStreamData: () => ({ adProgressData }) };
+}
+
+describe('DaiTracker — ad playback', () => {
+  // video-core gates AD_START on a per-ad state.isRequested flag and clears it
+  // on both AD_END and AD_BREAK_END, so without a request per ad only the
+  // session's first ad would ever report a start.
+  it('sends a request per ad, so every ad in a pod reports a start', () => {
+    const { sm, tracker } = makeTracker();
+    const order = [];
+    tracker.sendRequest = jest.fn(() => order.push('request'));
+    tracker.sendStart = jest.fn(() => order.push('start'));
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    sm._emit(StreamEventType.STARTED, startedEvent({ adId: 'a1' }));
+    sm._emit(StreamEventType.COMPLETE, {});
+    sm._emit(StreamEventType.STARTED, startedEvent({ adId: 'a2' }));
+
+    expect(tracker.sendRequest).toHaveBeenCalledTimes(2);
+    expect(tracker.sendStart).toHaveBeenCalledTimes(2);
+    expect(order).toEqual(['request', 'start', 'request', 'start']);
+  });
+
+  // goAdBreakEnd() clears isRequested but NOT isStarted, and only sendEnd()
+  // resets that, so an ad left unfinished here blocks AD_START for every later
+  // ad in the session.
+  it('ends an in-flight ad before closing its break', () => {
+    const { sm, tracker } = makeTracker();
+    const order = [];
+    tracker.sendEnd = jest.fn(() => order.push('end'));
+    tracker.sendAdBreakEnd = jest.fn(() => order.push('breakEnd'));
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    sm._emit(StreamEventType.STARTED, startedEvent());
+    sm._emit(StreamEventType.AD_BREAK_ENDED, {}); // no COMPLETE
+
+    expect(order).toEqual(['end', 'breakEnd']);
+    expect(tracker.getCurrentAd()).toBeNull();
+  });
+
+  // Joining a live stream mid-break, the SDK reports quartiles for an ad whose
+  // STARTED never reached us — measured, this is the FIRST thing that happens on
+  // a live join (spec 7.3). Those arrive with no ad identity, and counting them
+  // makes quartiles outnumber ad starts, breaking completion funnels.
+  it('never emits a quartile for an ad that never reported a start', () => {
+    const { sm, tracker } = makeTracker();
+    tracker.sendAdQuartile = jest.fn();
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    sm._emit(StreamEventType.MIDPOINT, {});
+    sm._emit(StreamEventType.THIRD_QUARTILE, {});
+    sm._emit(StreamEventType.COMPLETE, {});
+
+    expect(tracker.sendAdQuartile).not.toHaveBeenCalled();
+  });
+
+  it('does not emit a click for an ad that never reported a start', () => {
+    const { sm, tracker } = makeTracker();
+    tracker.sendAdClick = jest.fn();
+
+    sm._emit(StreamEventType.CLICK, {});
+
+    expect(tracker.sendAdClick).not.toHaveBeenCalled();
+  });
+
+  it('extracts ad identity even though the SDK has no getClickThroughUrl', () => {
+    const { sm, tracker } = makeTracker();
+
+    sm._emit(StreamEventType.STARTED, startedEvent({ adId: 'xyz' }));
+
+    const ad = tracker.getCurrentAd();
+    expect(ad.adId).toBe('xyz');
+    expect(ad.creativeId).toBe('creative-1');
+    expect(ad.title).toBe('An ad');
+    expect(ad.duration).toBe(10);
+    // Absent accessor must come back undefined, not throw.
+    expect(ad.clickThroughUrl).toBeUndefined();
+  });
+
+  // Read each accessor independently: the IMA Ad surface varies by creative and
+  // SDK version, and one missing or throwing method must not discard the
+  // attributes that did resolve.
+  it('survives an Ad object whose optional accessors all throw', () => {
+    const { sm, tracker } = makeTracker();
+
+    expect(() => {
+      sm._emit(StreamEventType.STARTED, startedEvent({ throwing: true }));
+    }).not.toThrow();
+
+    const ad = tracker.getCurrentAd();
+    expect(ad).not.toBeNull();
+    expect(ad.adId).toBeUndefined();
+    expect(ad.position).toBeNull();
+    expect(ad.adCount).toBeUndefined();
+  });
+
+  it('reports the real ad count from the IMA ad pod, not 0', () => {
+    const { sm, tracker } = makeTracker();
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    sm._emit(StreamEventType.STARTED, startedEvent({ totalAds: 3 }));
+
+    expect(tracker.getCurrentAd().adCount).toBe(3);
+    // Backfilled onto the break, which knows nothing at AD_BREAK_STARTED.
+    expect(tracker.getCurrentAdBreak().adCount).toBe(3);
+  });
+});
+
+describe('DaiTracker — adPosition', () => {
+  it('maps podIndex 0 to pre, -1 to post and any other number to mid', () => {
+    const { tracker } = makeTracker();
+    const at = (podIndex) => tracker.extractAdPosition(createMockAd({ podIndex }));
+
+    expect(at(0)).toBe('pre');
+    expect(at(-1)).toBe('post');
+    expect(at(1)).toBe('mid');
+    expect(at(7)).toBe('mid');
+    // Measured on the live asset: podIndex is a large monotonic identifier
+    // (2969997), so every live ad is a mid-roll (spec 6.7).
+    expect(at(2969997)).toBe('mid');
+  });
+
+  it('returns null when the pod info is unreadable', () => {
+    const { tracker } = makeTracker();
+    expect(tracker.extractAdPosition({})).toBeNull();
+    expect(tracker.extractAdPosition(createMockAd({ throwing: true }))).toBeNull();
+  });
+
+  // Under SSAI the ad itself advances the stitched stream's clock, so a
+  // time-based guess would reclassify a long pre-roll as a mid-roll partway in.
+  it('keeps adPosition stable for the whole ad as the stream time advances', () => {
+    const tag = createMockTag(0);
+    const sm = createMockStreamManager();
+    const tracker = new DaiTracker(sm, { tag });
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    sm._emit(StreamEventType.STARTED, startedEvent({ podIndex: 0 }));
+    expect(tracker.getAdPosition()).toBe('pre');
+
+    tag.currentTime = 9.5; // deep into a 10s pre-roll
+    expect(tracker.getAdPosition()).toBe('pre');
+  });
+
+  // Guards against adProgressData.adPosition (the 1-based index of the ad
+  // WITHIN its pod) being mapped onto pre/mid/post. Measured proof it cannot
+  // be: live one break of 3 ads gives 1,2,3 where ours must be mid,mid,mid
+  // (spec 7.7.1).
+  it('keeps adPosition identical for every ad in one pod', () => {
+    const { sm, tracker } = makeTracker();
+    const seen = [];
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    [1, 2, 3].forEach((n) => {
+      sm._emit(StreamEventType.STARTED, startedEvent({ adId: `a${n}`, podIndex: 4 }));
+      // The numeric field the SDK offers, deliberately not used for adPosition.
+      sm._emit(StreamEventType.AD_PROGRESS, progressEvent({
+        currentTime: n, duration: 10, totalAds: 3, adPosition: n,
+      }));
+      seen.push(tracker.getAdPosition());
+      sm._emit(StreamEventType.COMPLETE, {});
+    });
+
+    expect(seen).toEqual(['mid', 'mid', 'mid']);
+  });
+
+  it('never reports adPosition as a number', () => {
+    const { sm, tracker } = makeTracker();
+    const allowed = ['pre', 'mid', 'post', null];
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    expect(allowed).toContain(tracker.getAdPosition());
+
+    sm._emit(StreamEventType.STARTED, startedEvent({ podIndex: 2 }));
+    sm._emit(StreamEventType.AD_PROGRESS, progressEvent({
+      currentTime: 1, duration: 10, totalAds: 3, adPosition: 2,
+    }));
+
+    [
+      StreamEventType.FIRST_QUARTILE,
+      StreamEventType.MIDPOINT,
+      StreamEventType.THIRD_QUARTILE,
+    ].forEach((type) => {
+      sm._emit(type, {});
+      expect(allowed).toContain(tracker.getAdPosition());
+      expect(typeof tracker.getAdPosition()).not.toBe('number');
+    });
+  });
+});
+
+describe('DaiTracker — AD_PROGRESS is a cache, never an event', () => {
+  // Measured at ~4 events/second, 42 in one 50s live break. Emitting it would
+  // flood NRDB (spec 6.6), so this handler must contain no send* at all.
+  it('caches adProgressData on AD_PROGRESS without sending anything', () => {
+    const { sm, tracker } = makeTracker();
+    const sendSpies = [
+      'sendRequest', 'sendStart', 'sendEnd', 'sendPause', 'sendResume',
+      'sendAdQuartile', 'sendAdClick', 'sendAdBreakStart', 'sendAdBreakEnd',
+      'sendError', 'sendDownload',
+    ];
+    sendSpies.forEach((name) => { tracker[name] = jest.fn(); });
+
+    const data = {
+      adBreakDuration: 29.928, adPeriodDuration: 30.03, adPosition: 1,
+      currentTime: 0.267, duration: 9.976, totalAds: 3,
+    };
+    sm._emit(StreamEventType.AD_PROGRESS, progressEvent(data));
+
+    expect(tracker.adProgressData).toEqual(data);
+    sendSpies.forEach((name) => expect(tracker[name]).not.toHaveBeenCalled());
+  });
+
+  it('survives an AD_PROGRESS event carrying no stream data', () => {
+    const { sm, tracker } = makeTracker();
+    expect(() => sm._emit(StreamEventType.AD_PROGRESS, {})).not.toThrow();
+    expect(tracker.adProgressData).toBeNull();
+  });
+
+  it('drops the cached progress when the ad ends', () => {
+    const { sm, tracker } = makeTracker();
+
+    sm._emit(StreamEventType.STARTED, startedEvent());
+    sm._emit(StreamEventType.AD_PROGRESS, progressEvent({ currentTime: 5, duration: 10 }));
+    expect(tracker.adProgressData).not.toBeNull();
+
+    sm._emit(StreamEventType.COMPLETE, {});
+    expect(tracker.adProgressData).toBeNull();
+  });
+});
+
+describe('DaiTracker — quartile parity with hls.js', () => {
+  // Review Focus 4. The tracker does NOT de-duplicate: it reports whatever the
+  // SDK reports, gated only on an ad being in flight. Double-forwarding is
+  // prevented upstream by subscribing in one event mode (forwardDaiMetadata)
+  // and documented for integrators who hand-roll it. This test pins the parity
+  // so nobody "fixes" it into idempotency without revisiting that decision.
+  it('reports a quartile each time the SDK reports it, matching hls.js', () => {
+    const { sm, tracker } = makeTracker();
+    tracker.sendAdQuartile = jest.fn();
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    sm._emit(StreamEventType.STARTED, startedEvent());
+    sm._emit(StreamEventType.FIRST_QUARTILE, {});
+    sm._emit(StreamEventType.FIRST_QUARTILE, {});
+
+    expect(tracker.sendAdQuartile).toHaveBeenCalledTimes(2);
+    expect(tracker.sendAdQuartile).toHaveBeenNthCalledWith(1, { quartile: 1 });
+    expect(tracker.sendAdQuartile).toHaveBeenNthCalledWith(2, { quartile: 1 });
+  });
+
+  it('reports the three quartiles with their numbers', () => {
+    const { sm, tracker } = makeTracker();
+    tracker.sendAdQuartile = jest.fn();
+
+    sm._emit(StreamEventType.STARTED, startedEvent());
+    sm._emit(StreamEventType.FIRST_QUARTILE, {});
+    sm._emit(StreamEventType.MIDPOINT, {});
+    sm._emit(StreamEventType.THIRD_QUARTILE, {});
+
+    expect(tracker.sendAdQuartile.mock.calls.map(([a]) => a.quartile)).toEqual([1, 2, 3]);
+  });
+
+  it('reports a skipped ad as an end with the skipped flag', () => {
+    const { sm, tracker } = makeTracker();
+    tracker.sendEnd = jest.fn();
+
+    sm._emit(StreamEventType.STARTED, startedEvent());
+    sm._emit(StreamEventType.SKIPPED, {});
+
+    expect(tracker.sendEnd).toHaveBeenCalledWith({ skipped: true });
+    expect(tracker.getCurrentAd()).toBeNull();
+  });
+
+  it('reports pause and resume during an ad', () => {
+    const { sm, tracker } = makeTracker();
+    tracker.sendPause = jest.fn();
+    tracker.sendResume = jest.fn();
+
+    sm._emit(StreamEventType.PAUSED, {});
+    sm._emit(StreamEventType.RESUMED, {});
+
+    expect(tracker.sendPause).toHaveBeenCalled();
+    expect(tracker.sendResume).toHaveBeenCalled();
+  });
+
+  // video-core warns when the url key is absent-or-falsy, and the DAI Ad object
+  // exposes no clickthrough accessor, so a null would log on every click.
+  it('omits url entirely rather than sending a known null on click', () => {
+    const { sm, tracker } = makeTracker();
+    tracker.sendAdClick = jest.fn();
+
+    sm._emit(StreamEventType.STARTED, startedEvent());
+    sm._emit(StreamEventType.CLICK, {});
+
+    expect(tracker.sendAdClick).toHaveBeenCalledWith({});
+  });
+});
+
+// The project mock lets every send* succeed, so it cannot observe the base
+// class's gating. This replays video-core 5.1.1's real isRequested / isStarted /
+// isAdBreak transitions locally.
+//
+// WARNING: this is a hand-written replay, not the real module. If video-core
+// changes its gating, this diverges silently and keeps passing. It mirrors
+// video-core 5.1.1 (dist/cjs/index.js), the version package.json pins.
+describe('DaiTracker — replayed video-core 5.1.1 gating', () => {
+  function gatedTracker() {
+    const sm = createMockStreamManager();
+    const tracker = new DaiTracker(sm, { tag: createMockTag() });
+    const state = { isRequested: false, isStarted: false, isAdBreak: false };
+    const reported = [];
+
+    tracker.sendRequest = () => {
+      if (state.isRequested) return;
+      state.isRequested = true;
+      reported.push('AD_REQUEST');
+    };
+    tracker.sendStart = () => {
+      if (!state.isRequested || state.isStarted) return;
+      state.isStarted = true;
+      reported.push('AD_START');
+    };
+    tracker.sendEnd = () => {
+      if (!state.isRequested) return;
+      state.isRequested = false;
+      state.isStarted = false;
+      reported.push('AD_END');
+    };
+    tracker.sendAdBreakStart = () => {
+      if (state.isAdBreak) return;
+      state.isAdBreak = true;
+      reported.push('AD_BREAK_START');
+    };
+    tracker.sendAdBreakEnd = () => {
+      if (!state.isAdBreak) return;
+      state.isAdBreak = false;
+      state.isRequested = false; // goAdBreakEnd clears isRequested, NOT isStarted
+      reported.push('AD_BREAK_END');
+    };
+    tracker.sendAdQuartile = ({ quartile }) => reported.push(`AD_QUARTILE${quartile}`);
+
+    return { sm, tracker, reported };
+  }
+
+  function playAd(sm, adId) {
+    sm._emit(StreamEventType.STARTED, startedEvent({ adId, totalAds: 2 }));
+    sm._emit(StreamEventType.FIRST_QUARTILE, {});
+    sm._emit(StreamEventType.COMPLETE, {});
+  }
+
+  it('reports a start and an end for every ad in a multi-ad pod', () => {
+    const { sm, reported } = gatedTracker();
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    playAd(sm, 'ad1');
+    playAd(sm, 'ad2');
+    sm._emit(StreamEventType.AD_BREAK_ENDED, {});
+
+    expect(reported.filter((r) => r === 'AD_REQUEST')).toHaveLength(2);
+    expect(reported.filter((r) => r === 'AD_START')).toHaveLength(2);
+    expect(reported.filter((r) => r === 'AD_END')).toHaveLength(2);
+    // Non-negotiable assertion 3 from the verification plan.
+    expect(reported.filter((r) => r === 'AD_REQUEST').length).toBe(
+      reported.filter((r) => r === 'AD_START').length
+    );
+  });
+
+  it('still reports ads in a later break after the first break ended', () => {
+    const { sm, reported } = gatedTracker();
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    sm._emit(StreamEventType.STARTED, startedEvent({ adId: 'ad1' }));
+    sm._emit(StreamEventType.AD_BREAK_ENDED, {}); // ad1 never completed
+    const mark = reported.length;
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    playAd(sm, 'ad2');
+    sm._emit(StreamEventType.AD_BREAK_ENDED, {});
+
+    const second = reported.slice(mark);
+    expect(second).toContain('AD_START');
+    expect(second.indexOf('AD_START')).toBeLessThan(second.indexOf('AD_QUARTILE1'));
+  });
+});

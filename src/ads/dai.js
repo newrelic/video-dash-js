@@ -208,29 +208,102 @@ export default class DaiTracker extends nrvideo.VideoTracker {
     }
   }
 
-  // --- ad playback handlers: implemented in Task 3 -------------------------
-  // Declared here so the registration map above is complete and the 19
-  // subscriptions are real. Deliberate stubs, not oversights.
+  onAdStarted(event) {
+    this.currentAdData = this.extractAdData(event);
+    // No stream-time capture here. adPlayhead comes from the SDK's own
+    // adProgressData (spec 7.7), so unlike hls.js there is no offset to take.
 
-  onAdStarted() {}
+    // AD_BREAK_STARTED carries no break information at all, so backfill it from
+    // the first ad's pod info now that one exists.
+    if (this.adBreakData) {
+      if (this.adBreakData.position == null) {
+        this.adBreakData.position = this.currentAdData.position;
+      }
+      if (
+        this.adBreakData.adCount === undefined &&
+        this.currentAdData.adCount !== undefined
+      ) {
+        this.adBreakData.adCount = this.currentAdData.adCount;
+      }
+    }
 
-  onAdFirstQuartile() {}
+    // Each ad needs its own request: video-core gates AD_START on
+    // state.isRequested and clears it on both AD_END and AD_BREAK_END, so
+    // without this only the session's first ad would ever report a start.
+    this.sendRequest();
+    this.sendStart();
+  }
 
-  onAdMidpoint() {}
+  /**
+   * Quartiles and clicks only mean something for an ad we are tracking. Joining
+   * a live stream mid-break, the SDK reports quartiles for an ad whose STARTED
+   * never reached us — measured on the live asset, this is the FIRST thing that
+   * happens on a live join: midpoint, thirdquartile and complete arrived with
+   * no started at all (spec 7.3). Those carry no ad identity, and counting them
+   * makes quartiles outnumber ad starts, which breaks completion-rate funnels.
+   */
+  hasAdInFlight() {
+    return this.currentAdData != null;
+  }
 
-  onAdThirdQuartile() {}
+  onAdFirstQuartile() {
+    if (!this.hasAdInFlight()) return;
+    this.sendAdQuartile({ quartile: 1 });
+  }
 
-  onAdComplete() {}
+  onAdMidpoint() {
+    if (!this.hasAdInFlight()) return;
+    this.sendAdQuartile({ quartile: 2 });
+  }
 
-  onAdSkipped() {}
+  onAdThirdQuartile() {
+    if (!this.hasAdInFlight()) return;
+    this.sendAdQuartile({ quartile: 3 });
+  }
 
-  onAdPaused() {}
+  onAdComplete() {
+    this.sendEnd();
+    this.clearCurrentAd();
+  }
 
-  onAdResumed() {}
+  onAdSkipped() {
+    this.sendEnd({ skipped: true });
+    this.clearCurrentAd();
+  }
 
-  onAdClicked() {}
+  onAdPaused() {
+    this.sendPause();
+  }
 
-  onAdProgress() {}
+  onAdResumed() {
+    this.sendResume();
+  }
+
+  onAdClicked() {
+    if (!this.hasAdInFlight()) return;
+    // Omit url rather than send a known null: video-core warns when the key is
+    // absent-or-falsy, and the DAI Ad object exposes no clickthrough accessor,
+    // so a null would log that warning on every click.
+    const url = this.getClickThroughUrl();
+    this.sendAdClick(url ? { url } : {});
+  }
+
+  /**
+   * Cache only — this handler must contain no `send*` of any kind.
+   *
+   * AD_PROGRESS fires ~4 times a second (measured: 42 events in one 50s live
+   * break, 274 in five minutes), so emitting it would flood NRDB. But it is the
+   * only event carrying StreamData.adProgressData, which is where adPlayhead
+   * comes from, so it has to be registered and stored (spec 6.6, 7.7).
+   */
+  onAdProgress(event) {
+    try {
+      const data = event?.getStreamData?.()?.adProgressData;
+      if (data) this.adProgressData = data;
+    } catch (error) {
+      nrvideo.Log.warn('DaiTracker: Failed to read ad progress', error);
+    }
+  }
 
   /**
    * Cue points live on StreamData — the StreamEvent has no getCuepoints(). Only
@@ -268,6 +341,82 @@ export default class DaiTracker extends nrvideo.VideoTracker {
    */
   extractAdBreakData() {
     return { adCount: undefined, position: null };
+  }
+
+  extractAdData(event) {
+    let ad;
+    try {
+      ad = event.getAd();
+    } catch (error) {
+      nrvideo.Log.warn('DaiTracker: Failed to extract ad data', error);
+      return {};
+    }
+
+    // Read each accessor independently. The IMA Ad surface varies by creative
+    // and SDK version — notably it defines no getClickThroughUrl at all — and
+    // one missing method must not discard the attributes that did resolve.
+    const read = (name) => {
+      try {
+        return typeof ad?.[name] === 'function' ? ad[name]() : undefined;
+      } catch (error) {
+        nrvideo.Log.warn(`DaiTracker: ad.${name}() failed`, error);
+        return undefined;
+      }
+    };
+
+    return {
+      adId: read('getAdId'),
+      creativeId: read('getCreativeId'),
+      duration: read('getDuration'),
+      title: read('getTitle'),
+      description: read('getDescription'),
+      advertiserName: read('getAdvertiserName'),
+      dealId: read('getDealId'),
+      wrapperAdIds: read('getWrapperAdIds'),
+      // Absent from today's DAI Ad object; read defensively so a future SDK
+      // that adds it is picked up without another change here.
+      clickThroughUrl: read('getClickThroughUrl'),
+      position: this.extractAdPosition(ad),
+      adCount: this.extractPodTotalAds(ad),
+    };
+  }
+
+  extractPodTotalAds(ad) {
+    try {
+      const total = ad?.getAdPodInfo?.()?.getTotalAds?.();
+      return typeof total === 'number' ? total : undefined;
+    } catch (error) {
+      nrvideo.Log.warn('DaiTracker: Failed to read ad pod size', error);
+      return undefined;
+    }
+  }
+
+  /**
+   * Ad position from IMA's pod index, which is authoritative: podIndex 0 is a
+   * pre-roll, -1 a post-roll, anything else a mid-roll. Playback time cannot be
+   * used — under SSAI the ad itself advances the stitched stream's clock, so a
+   * time-based guess reclassifies a long pre-roll as a mid-roll partway in.
+   *
+   * Never `adProgressData.adPosition` or `AdPodInfo.getAdPosition()`: both are
+   * the 1-based index of the ad WITHIN its pod and are a different quantity.
+   * Measured, a numeric mapping fails in both directions — live one break of 3
+   * ads gives 1,2,3 where ours must be mid,mid,mid; VOD 5 breaks of 1 ad give
+   * 1,1,1,1,1 where ours must be pre,mid,mid,mid,post (spec 7.7.1).
+   *
+   * On live, podIndex is a large monotonic identifier (measured 2969997), so
+   * podIndex === 0 never matches and every live ad maps to 'mid'. Correct for
+   * this customer, who serves mid-rolls only on live (spec 6.7).
+   */
+  extractAdPosition(ad) {
+    try {
+      const podIndex = ad?.getAdPodInfo?.()?.getPodIndex?.();
+      if (podIndex === 0) return 'pre';
+      if (podIndex === -1) return 'post';
+      if (typeof podIndex === 'number') return 'mid';
+    } catch (error) {
+      nrvideo.Log.warn('DaiTracker: Failed to read ad pod info', error);
+    }
+    return null;
   }
 
   /**
@@ -337,6 +486,19 @@ export default class DaiTracker extends nrvideo.VideoTracker {
 
   getAdPartner() {
     return 'google-dai';
+  }
+
+  getClickThroughUrl() {
+    return this.currentAdData?.clickThroughUrl ?? null;
+  }
+
+  /**
+   * Captured when the ad started, so it stays constant across every event of
+   * that ad instead of drifting as playback advances, and is identical for
+   * every ad in one pod. Always 'pre' / 'mid' / 'post' / null — never a number.
+   */
+  getAdPosition() {
+    return this.currentAdData?.position ?? this.adBreakData?.position ?? null;
   }
 
   getCurrentAdBreak() {
