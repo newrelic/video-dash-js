@@ -839,3 +839,60 @@ describe("guarded content transitions during a break", () => {
     expect(tracker.sendResume).toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Rendition changes during ad breaks (spec 9.2.2)
+//
+// This is the one decision that diverges from hls.js, where onQualityChange is
+// unguarded. Measured 2026-11-09, the premise holds: qualityChangeRendered DOES
+// fire inside breaks. VOD reported 274000 at the pre-roll's start against
+// 2142460 for the content either side; live reported 334000 and 335000 inside
+// the break and 400000 after it.
+//
+// The value itself is accurate — dash.js 5 carries bandwidth directly — but it
+// describes the AD's representation while the event we emit from it is labelled
+// CONTENT_RENDITION_CHANGE. A consumer reading that at 274 kbps concludes the
+// viewer's content dropped to 274 kbps, which never happened.
+// ---------------------------------------------------------------------------
+describe("rendition changes during ad breaks", () => {
+  const v5Payload = {
+    mediaType: "video",
+    oldRepresentation: { bandwidth: 2142460 },
+    newRepresentation: { bandwidth: 274000 },
+  };
+
+  it("suppresses rendition changes during a break", () => {
+    const tracker = guardedTracker(fakeAdsTracker({ isAdPlaying: () => true }));
+
+    tracker.onAdaptation(v5Payload);
+
+    expect(tracker.sendRenditionChanged).not.toHaveBeenCalled();
+  });
+
+  it("reports rendition changes normally between breaks", () => {
+    const ads = fakeAdsTracker({ isAdPlaying: jest.fn(() => true) });
+    const tracker = guardedTracker(ads);
+
+    tracker.onAdaptation(v5Payload);
+    expect(tracker.sendRenditionChanged).not.toHaveBeenCalled();
+
+    ads.isAdPlaying.mockReturnValue(false); // break ends
+    tracker.onAdaptation({
+      mediaType: "video",
+      oldRepresentation: { bandwidth: 274000 },
+      newRepresentation: { bandwidth: 2142460 },
+    });
+
+    expect(tracker.sendRenditionChanged).toHaveBeenCalledTimes(1);
+    expect(tracker.sendRenditionChanged).toHaveBeenCalledWith({
+      oldBitrate: 274000,
+      newBitrate: 2142460,
+    });
+  });
+
+  it("reports rendition changes when there is no ads tracker", () => {
+    const tracker = guardedTracker(undefined);
+    tracker.onAdaptation(v5Payload);
+    expect(tracker.sendRenditionChanged).toHaveBeenCalled();
+  });
+});

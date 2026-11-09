@@ -449,6 +449,19 @@ export default class DashTracker extends nrvideo.VideoTracker {
    * session (spec 13.5).
    */
   onAdaptation(e) {
+    // Treat a rendition change as a content transition *open* and suppress it
+    // during a break, consistent with the open/close asymmetry above.
+    //
+    // This diverges from hls.js, where the equivalent handler is unguarded —
+    // that parity argument was derived from single-period HLS. Measured on a
+    // DAI DASH stream, qualityChangeRendered fires inside breaks carrying the
+    // AD's representation: 274000 at a VOD pre-roll's start against 2142460
+    // for the content either side of it. The number is accurate for what it
+    // describes; the problem is that we would publish it as
+    // CONTENT_RENDITION_CHANGE, telling a consumer the viewer's content
+    // dropped to 274 kbps when it never did (spec 9.2.2).
+    if (this.isAdsTrackerActive()) return;
+
     const payload = e || {};
     const hasRepresentations =
       typeof payload.oldRepresentation !== 'undefined' ||
