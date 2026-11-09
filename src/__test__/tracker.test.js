@@ -975,3 +975,87 @@ describe("onError", () => {
     expect(tracker.player.on).toHaveBeenCalledWith("playbackError", expect.any(Function));
   });
 });
+
+// ---------------------------------------------------------------------------
+// Content-time conversion (spec 9.3)
+//
+// Under SSAI the stitched stream's clock includes every ad played so far, so
+// reporting it directly overstates content progress by the cumulative ad
+// duration.
+//
+// MEASURED 2026-11-09, which is what decided the shape of this:
+//   VOD  — contentTimeForStreamTime subtracts ad time correctly. Content time
+//          reads 0 for the whole 10.01s pre-roll, then the gap settles at
+//          exactly 10.010 (stream 10.648 -> content 0.638).
+//   LIVE — it is an identity. The playhead returned unchanged across 14
+//          samples, and so did player.duration() (60 -> 60).
+//
+// Live is therefore harmless, so there is deliberately NO isLive() skip and no
+// live test: a skip would add a branch, diverge from hls.js, and change nothing.
+// ---------------------------------------------------------------------------
+describe("content time conversion", () => {
+  it("converts contentPlayhead to content time via the ads tracker", () => {
+    const ads = fakeAdsTracker({
+      // Mirrors the measured VOD behaviour: 10.01s of ads played so far.
+      contentTimeForStreamTime: jest.fn((streamTime) => streamTime - 10.01),
+    });
+    const tracker = guardedTracker(ads, { time: jest.fn(() => 10.648) });
+
+    expect(tracker.getPlayhead()).toBeCloseTo(638, 0);
+    expect(ads.contentTimeForStreamTime).toHaveBeenCalledWith(10.648);
+  });
+
+  it("converts contentDuration to content time as well", () => {
+    const ads = fakeAdsTracker({
+      contentTimeForStreamTime: jest.fn((t) => t - 30),
+    });
+    const tracker = guardedTracker(ads, { duration: jest.fn(() => 764.197) });
+
+    // Still seconds: rescaling to ms is Task 12 and is blocked on a release
+    // decision, so this task must not touch the unit.
+    expect(tracker.getDuration()).toBeCloseTo(734.197, 3);
+  });
+
+  it("reports stream time unchanged when there is no ads tracker", () => {
+    const tracker = guardedTracker(undefined, { time: jest.fn(() => 12.5) });
+    expect(tracker.getPlayhead()).toBe(12500);
+  });
+
+  it("reports stream time unchanged when the SDK cannot convert", () => {
+    const ads = fakeAdsTracker({
+      contentTimeForStreamTime: jest.fn(() => undefined),
+    });
+    const tracker = guardedTracker(ads, { time: jest.fn(() => 12.5) });
+    expect(tracker.getPlayhead()).toBe(12500);
+  });
+
+  it("reports stream time unchanged when the conversion is not finite", () => {
+    const ads = fakeAdsTracker({
+      contentTimeForStreamTime: jest.fn(() => NaN),
+    });
+    const tracker = guardedTracker(ads, { time: jest.fn(() => 12.5) });
+    expect(tracker.getPlayhead()).toBe(12500);
+  });
+
+  it("reports stream time unchanged when the ads tracker cannot convert at all", () => {
+    const ads = fakeAdsTracker({ contentTimeForStreamTime: undefined });
+    const tracker = guardedTracker(ads, { time: jest.fn(() => 12.5) });
+    expect(tracker.getPlayhead()).toBe(12500);
+  });
+
+  // The measured live case: an identity conversion must be indistinguishable
+  // from no conversion, which is why no isLive() skip is needed.
+  it("is harmless when the conversion is an identity, as measured on live", () => {
+    const ads = fakeAdsTracker({
+      contentTimeForStreamTime: jest.fn((t) => t),
+    });
+    const tracker = guardedTracker(ads, {
+      time: jest.fn(() => 179378221.608),
+      duration: jest.fn(() => 60),
+      isDynamic: jest.fn(() => true),
+    });
+
+    expect(tracker.getPlayhead()).toBeCloseTo(179378221608, 0);
+    expect(tracker.getDuration()).toBe(60);
+  });
+});

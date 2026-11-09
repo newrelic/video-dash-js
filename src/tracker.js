@@ -112,12 +112,42 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   getPlayhead() {
-    return this.player.time() * 1000; // in milliseconds
+    return this.toContentTime(this.player.time()) * 1000; // in milliseconds
+  }
+
+  /**
+   * Stream time to content time.
+   *
+   * Under SSAI the stitched stream's clock includes every ad played so far, so
+   * reporting it directly overstates content progress by the cumulative ad
+   * duration. An ads tracker that can convert is asked to; anything else — no
+   * ads, or an ad framework without a conversion — reports the clock as-is.
+   *
+   * Measured behaviour of the SDK's conversion: on VOD it subtracts ad time
+   * correctly (content time reads 0 through a 10.01s pre-roll, then the gap
+   * settles at exactly 10.010); on live it is an identity, for both the
+   * playhead and the finite DVR duration. There is deliberately no isLive()
+   * skip — an identity conversion is indistinguishable from no conversion, so a
+   * skip would add a branch and diverge from hls.js for no measured reason
+   * (spec 9.3.2).
+   */
+  toContentTime(streamTime) {
+    const converted = this.adsTracker?.contentTimeForStreamTime?.(streamTime);
+    return typeof converted === 'number' && Number.isFinite(converted)
+      ? converted
+      : streamTime;
   }
 
   getDuration() {
-    // Returns the duration of the MPD in seconds
-    return this.player.duration();
+    // Same stream-vs-content distinction as getPlayhead: a stitched VOD's
+    // duration includes every inserted ad.
+    //
+    // Still SECONDS, deliberately. dash.js reports duration in seconds while
+    // the data model and every other tracker use ms — a real pre-existing
+    // defect, but fixing it multiplies contentDuration by 1000 for every
+    // existing DASH customer, so it is blocked on a release decision and
+    // tracked separately (spec 10.2). Do not add `* 1000` here.
+    return this.toContentTime(this.player.duration());
   }
 
   getTrack() {
