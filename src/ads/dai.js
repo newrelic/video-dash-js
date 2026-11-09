@@ -547,10 +547,17 @@ export default class DaiTracker extends nrvideo.VideoTracker {
    * already derives its version from `player.getVersion()`, so reporting
    * 'unknown' would throw away information we hold.
    *
-   * This is a deliberate divergence from hls.js, which hardcodes 'unknown'
-   * because the DAI SDK exposes no version of its own. It is a better value in
-   * the same attribute, not a data-model change (spec 7.8). Do not "restore
-   * parity" by reverting it.
+   * ⚠️ But this value does NOT reach New Relic, and spec §7.8's original
+   * argument — "a better value in the same attribute" — was wrong. Verified
+   * against stored events: ad telemetry funnels through
+   * `parentTracker.sendVideoAdAction`, so the CONTENT tracker fills
+   * `playerVersion`. An hls DAI ad event stores `playerVersion: '1.7.4'`
+   * (hls.js's) even though its ad tracker hardcodes 'unknown'. The published
+   * attribute is the dash.js version either way.
+   *
+   * Kept because it costs nothing and is the honest answer for anything
+   * holding this tracker directly — but do not cite it as a telemetry
+   * improvement, and do not expect it in NRDB.
    */
   getPlayerVersion() {
     return this.contentTracker?.getPlayerVersion?.() ?? 'unknown';
