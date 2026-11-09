@@ -128,14 +128,14 @@ An Attribute is a piece of data associated with an event. Attributes provide add
 | adRenditionHeight        | Rendition actual Height (before re-scaling).                                                                                                       |
 | adRenditionWidth         | Rendition actual Width (before re-scaling).                                                                                                        |
 | adDuration               | Duration of the video, in ms.                                                                                                                      |
-| adPlayhead               | Playhead (currentTime) of the video, in ms.                                                                                                        |
+| adPlayhead               | Playhead (currentTime) of the ad, in ms, relative to the start of the ad. Under Google IMA DAI this comes from the SDK's `adProgressData.currentTime`, **not** from the stitched stream clock. See the DAI note below. |
 | adLanguage               | Language of the ad video. We recommend using locale notation, e.g., en_US.                                                                         |
 | adSrc                    | URL of the resource being played.                                                                                                                  |
 | adCdn                    | The CDN serving the content.                                                                                                                       |
 | adIsMuted                | True if the video is currently muted.                                                                                                              |
 | adFps                    | Current FPS (Frames per second).                                                                                                                   |
 | adQuartile               | Quartile of the ad. 0 before first, 1 after first quartile, 2 after midpoint, 3 after third quartile, 4 when completed.                            |
-| adPosition               | The position of the ad.                                                                                                                            |
+| adPosition               | Where the ad **break** sits in the content: `'pre'`, `'mid'` or `'post'`. Constant for every ad in one pod, and never a number. See the DAI note below. |
 | adCreativeId             | The creative ID of the ad.                                                                                                                         |
 | adPartner                | The ad partner, e.g., ima, freewheel.                                                                                                              |
 | isBackgroundEvent        | If the player is hidden by another window.                                                                                                         |
@@ -150,6 +150,53 @@ An Attribute is a piece of data associated with an event. Attributes provide add
 | instrumentation.provider | Player/agent name.                                                                                                                                 |
 | instrumentation.name     | Name of the instrumentation collecting the data.                                                                                                   |
 | instrumentation.version  | Agent’s version.                                                                                                                                   |
+
+#### Google IMA DAI: where these values come from
+
+The DASH tracker reports DAI ads through `DaiTracker`. Three attributes have a
+source that is easy to guess wrong when reading Google's SDK documentation, so
+they are stated explicitly.
+
+**`adPosition` comes only from `ad.getAdPodInfo().getPodIndex()`.**
+`podIndex === 0` is a pre-roll, `-1` a post-roll, any other number a mid-roll.
+It describes where the *break* sits in the content, so it is identical for
+every ad in a pod.
+
+It is **never** taken from `adProgressData.adPosition` or
+`AdPodInfo.getAdPosition()`. Both of those are the 1-based index of the ad
+*within its pod* — a different quantity, and measurement shows a numeric
+mapping fails in both directions:
+
+| Case | the numeric field gives | a numeric mapping would report | correct |
+|---|---|---|---|
+| Live, one mid-roll break of 3 ads | `1, 2, 3` | `pre, mid, post` | `mid, mid, mid` |
+| VOD, 5 breaks of 1 ad | `1, 1, 1, 1, 1` | `pre, pre, pre, pre, pre` | `pre, mid, mid, mid, post` |
+
+On a live stream `podIndex` is a large monotonic identifier (measured:
+`2969997`), so `podIndex === 0` never matches and every live ad is reported as
+`mid`. If you serve live pre-rolls and need them distinguished, raise it —
+`AdPodInfo.getTimeOffset()` is the untested candidate.
+
+**`adPlayhead` comes from `adProgressData.currentTime`**, which the SDK reports
+ad-relative and starting at 0. It is `0` for an ad that has started but has not
+yet produced a progress tick.
+
+**`adDuration` comes from `ad.getDuration()`**, which is known from the ad's
+start and stays constant for the whole ad. The SDK also offers
+`adProgressData.duration`, which is finer-grained but changes mid-ad; a
+duration that moves invites distrust of the whole dataset, so it is not used.
+
+⚠️ **The two never quite meet.** `adPlayhead` tops out just short of
+`adDuration` — measured, `currentTime` reached 9.976s against an
+`ad.getDuration()` of 10, so `adPlayhead / adDuration` caps near **99.76%** and
+a condition written `adPlayhead >= adDuration` **never fires**. Measure ad
+completion from `AD_END` or the third quartile instead.
+
+**`adCount`** is the pod size, from `getAdPodInfo().getTotalAds()`.
+**`adPartner`** is always `google-dai`.
+**`errorMessage`** on a DAI stream error has its query string stripped and its
+length capped: the SDK embeds the full ad request URL, whose query carries
+`ua`, `uach`, `sid` and, in real integrations, `ppid` and `cust_params`.
 
 #### List of possible Video Ad Actions
 

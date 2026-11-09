@@ -23,3 +23,6 @@ coverage/
 samples/agent.js
 
 *.tgz
+
+# Local agent workspace (planning and decision notes, not published)
+.claude/
