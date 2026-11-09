@@ -15,8 +15,64 @@ export default class DashTracker extends nrvideo.VideoTracker {
     }
   }
 
+  /**
+   * Resolves the video element from the player when the application did not
+   * pass one.
+   *
+   * `getVideoElement` exists in both dash.js 4.7.4 and 5.3.0 (verified against
+   * the bundles). Resolving it here removes the ordering trap that bit the
+   * hls.js sample, where the tracker had to be constructed *after* the media
+   * element was attached. `options.tag` stays supported and takes precedence,
+   * so an app that already passes one is unaffected (spec 7.6).
+   */
   setPlayer(player, tag) {
-    nrvideo.VideoTracker.prototype.setPlayer.call(this, player, tag);
+    const resolved = tag || this.resolveVideoElement(player);
+    nrvideo.VideoTracker.prototype.setPlayer.call(this, player, resolved);
+  }
+
+  resolveVideoElement(player) {
+    try {
+      return typeof player?.getVideoElement === 'function'
+        ? player.getVideoElement()
+        : null;
+    } catch (error) {
+      // The element may not exist yet; the base class falls back to the player.
+      return null;
+    }
+  }
+
+  /**
+   * True while an ad is actually on screen, so content QoE events can stand
+   * down. Scoped to the current ad break rather than the ad tracker's permanent
+   * isAd() flag — under SSAI the ad tracker stays attached for the whole
+   * session, and content pause/seek/buffer must keep reporting between breaks.
+   */
+  isAdsTrackerActive() {
+    if (!this.adsTracker || !this.adsTracker.isAd || !this.adsTracker.isAd()) {
+      return false;
+    }
+    // Preferred: covers the start of a pre-roll, before the ad SDK has
+    // announced the break. A disposed DaiTracker answers false here rather
+    // than throwing — video-core's disposeAdsTracker() nulls its player and tag
+    // but leaves this reference in place.
+    if (typeof this.adsTracker.isAdPlaying === 'function') {
+      return this.adsTracker.isAdPlaying();
+    }
+    if (typeof this.adsTracker.getCurrentAdBreak === 'function') {
+      return this.adsTracker.getCurrentAdBreak() != null;
+    }
+    return true;
+  }
+
+  /**
+   * Whether a content transition that is ALREADY OPEN may be closed during an
+   * ad break. It always may: video-core bills (stopTime - startTime) to
+   * totalRebufferingTime and pairs goSeekEnd with isSeeking, so holding a
+   * transition open across a break charges the whole pod to content. A stall
+   * that begins just before an ad boundary is a common SSAI case.
+   */
+  canCloseContentTransition(flag) {
+    return !this.isAdsTrackerActive() || !!this.state?.[flag];
   }
 
   getTrackerName() {
@@ -278,6 +334,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.onBufferingLoaded = this.onBufferingLoaded.bind(this);
     this.onAdaptation = this.onAdaptation.bind(this);
     this.onFragmentLoadingCompleted = this.onFragmentLoadingCompleted.bind(this);
+    this.onTimeUpdated = this.onTimeUpdated.bind(this);
 
     this.player.on('streamInitialized', this.onReady);
     this.player.on('playbackMetaDataLoaded', this.onDownload);
@@ -294,6 +351,8 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.player.on('bufferLoaded', this.onBufferingLoaded);
     this.player.on('qualityChangeRendered', this.onAdaptation);
     this.player.on('fragmentLoadingCompleted', this.onFragmentLoadingCompleted);
+    // CONTENT_START lives here, not in playbackPlaying — see onTimeUpdated.
+    this.player.on('playbackTimeUpdated', this.onTimeUpdated);
   }
 
   unregisterListeners() {
@@ -312,6 +371,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.player.off('bufferLoaded', this.onBufferingLoaded);
     this.player.off('qualityChangeRendered', this.onAdaptation);
     this.player.off('fragmentLoadingCompleted', this.onFragmentLoadingCompleted);
+    this.player.off('playbackTimeUpdated', this.onTimeUpdated);
   }
 
   onReady() {
@@ -333,8 +393,33 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   onPlaying() {
+    // Content is not resuming during an ad. sendStart() deliberately does NOT
+    // live here any more — see onTimeUpdated.
+    if (this.isAdsTrackerActive()) return;
     this.sendResume();
-    this.sendStart();
+  }
+
+  /**
+   * Where CONTENT_START comes from, and the single most important correction in
+   * this design.
+   *
+   * Suppressing sendStart() inside onPlaying alone would **lose**
+   * CONTENT_START for the whole session rather than defer it. `playbackPlaying`
+   * is dash.js relaying the media element's `playing` event, and under SSAI the
+   * pre-roll -> content boundary is seamless inside one stitched stream: no
+   * pause, no rebuffer, no second `playing`. video-core only sets content
+   * isStarted from sendStart() and never retries, so nothing would recover it.
+   *
+   * `playbackTimeUpdated` keeps firing, so the guard defers the start to the
+   * first tick after the break ends. Verified present in both dash.js 4.7.4
+   * and 5.3.0 (spec 9.2.1). This mirrors hls.js, which gets the same behaviour
+   * by accident of placement — its sendStart lives in onTimeupdate.
+   */
+  onTimeUpdated() {
+    if (this.isAdsTrackerActive()) return;
+    if (this.getPlayhead() > 0.1) {
+      this.sendStart();
+    }
   }
 
   /**
@@ -381,22 +466,29 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   onBufferingStalled() {
+    if (this.isAdsTrackerActive()) return;
     this.sendBufferStart();
   }
 
   onBufferingLoaded() {
+    // A stall that began before the break still has to be closed, at the real
+    // recovery moment, or its whole duration is billed to content.
+    if (!this.canCloseContentTransition('isBuffering')) return;
     this.sendBufferEnd();
   }
 
   onPause() {
+    if (this.isAdsTrackerActive()) return;
     this.sendPause();
   }
 
   onSeeking() {
+    if (this.isAdsTrackerActive()) return;
     this.sendSeekStart();
   }
 
   onSeeked() {
+    if (!this.canCloseContentTransition('isSeeking')) return;
     this.sendSeekEnd();
   }
 

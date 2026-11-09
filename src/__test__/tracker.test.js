@@ -424,10 +424,13 @@ describe("Tracker Event Handlers", () => {
     expect(tracker.sendRequest).toHaveBeenCalled();
   });
 
-  it("should call sendResume and sendStart on onPlaying", () => {
+  // CONTENT_START deliberately no longer comes from onPlaying. It moved to
+  // playbackTimeUpdated so a pre-roll can defer it rather than lose it — see
+  // the "CONTENT_START" describe block below and spec 9.2.1.
+  it("should call sendResume but not sendStart on onPlaying", () => {
     tracker.onPlaying();
     expect(tracker.sendResume).toHaveBeenCalled();
-    expect(tracker.sendStart).toHaveBeenCalled();
+    expect(tracker.sendStart).not.toHaveBeenCalled();
   });
 
   it("should call sendRenditionChanged on onAdaptation", () => {
@@ -576,5 +579,263 @@ describe("onAdaptation across dash.js majors", () => {
       oldBitrate: null,
       newBitrate: null,
     });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The DAI content guard (spec 9.1, 9.2)
+//
+// NOTE on fixtures: the project's video-core mock has `setAdsTracker() {}` as a
+// no-op and no `state` object at all, so these tests assign `tracker.adsTracker`
+// and `tracker.state` directly. That is deliberate — the guard's logic is what
+// is under test here, not video-core's wiring.
+// ---------------------------------------------------------------------------
+function fakeAdsTracker(overrides = {}) {
+  return {
+    isAd: () => true,
+    isAdPlaying: jest.fn(() => false),
+    getCurrentAdBreak: jest.fn(() => null),
+    ...overrides,
+  };
+}
+
+function guardedTracker(adsTracker, playerOverrides = {}) {
+  const p = {
+    on: jest.fn(),
+    off: jest.fn(),
+    getVersion: jest.fn().mockReturnValue("5.3.0"),
+    time: jest.fn().mockReturnValue(12.5),
+    duration: jest.fn().mockReturnValue(600),
+    isDynamic: jest.fn().mockReturnValue(false),
+    ...playerOverrides,
+  };
+  const tracker = new DashTracker(p, {});
+  if (adsTracker !== undefined) tracker.adsTracker = adsTracker;
+  tracker.state = {};
+  [
+    "sendRequest", "sendResume", "sendStart", "sendPause", "sendSeekStart",
+    "sendSeekEnd", "sendBufferStart", "sendBufferEnd", "sendRenditionChanged",
+    "sendError", "sendEnd",
+  ].forEach((m) => { tracker[m] = jest.fn(); });
+  return tracker;
+}
+
+describe("isAdsTrackerActive", () => {
+  it("is false when there is no ads tracker at all", () => {
+    const tracker = guardedTracker(undefined);
+    expect(tracker.isAdsTrackerActive()).toBe(false);
+  });
+
+  it("prefers isAdPlaying(), which covers the start of a pre-roll", () => {
+    const ads = fakeAdsTracker({ isAdPlaying: jest.fn(() => true) });
+    const tracker = guardedTracker(ads);
+
+    expect(tracker.isAdsTrackerActive()).toBe(true);
+    expect(ads.isAdPlaying).toHaveBeenCalled();
+    // The break object must not even be consulted when isAdPlaying answered.
+    expect(ads.getCurrentAdBreak).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the current ad break when isAdPlaying is absent", () => {
+    const ads = fakeAdsTracker({
+      isAdPlaying: undefined,
+      getCurrentAdBreak: jest.fn(() => ({ adCount: 3 })),
+    });
+    const tracker = guardedTracker(ads);
+    expect(tracker.isAdsTrackerActive()).toBe(true);
+  });
+
+  // Scoped to a break IN PROGRESS, never the permanent isAd() flag: under SSAI
+  // the ads tracker stays attached for the whole session, so content
+  // pause/seek/buffer must keep reporting between breaks.
+  it("resumes content reporting between breaks even though isAd() stays true", () => {
+    const ads = fakeAdsTracker({ isAdPlaying: jest.fn(() => false) });
+    const tracker = guardedTracker(ads);
+
+    expect(ads.isAd()).toBe(true);
+    expect(tracker.isAdsTrackerActive()).toBe(false);
+
+    tracker.onPause();
+    expect(tracker.sendPause).toHaveBeenCalled();
+  });
+
+  // Review Focus 3. video-core's disposeAdsTracker() nulls the ads tracker's
+  // player and tag but leaves the parent's reference in place, so the guard
+  // keeps calling into a disposed object. It must be inert, not throw.
+  it("stays inert when the ads tracker has been disposed", () => {
+    const disposed = {
+      isAd: () => true,
+      // A disposed DaiTracker answers false here rather than throwing.
+      isAdPlaying: () => false,
+      getCurrentAdBreak: () => null,
+    };
+    const tracker = guardedTracker(disposed);
+
+    expect(() => tracker.isAdsTrackerActive()).not.toThrow();
+    expect(tracker.isAdsTrackerActive()).toBe(false);
+    tracker.onPause();
+    expect(tracker.sendPause).toHaveBeenCalled();
+  });
+
+  it("does not throw when the ads tracker exposes neither predicate", () => {
+    const tracker = guardedTracker({ isAd: () => true });
+    expect(() => tracker.isAdsTrackerActive()).not.toThrow();
+    expect(tracker.isAdsTrackerActive()).toBe(true);
+  });
+});
+
+describe("canCloseContentTransition", () => {
+  // The asymmetry: OPENING a content transition during a break is suppressed,
+  // CLOSING one already open is not. video-core bills (stopTime - startTime) to
+  // totalRebufferingTime, so holding a transition open across a break charges
+  // the whole ad pod to content.
+  it("allows closing a transition that was already open when the break began", () => {
+    const ads = fakeAdsTracker({ isAdPlaying: jest.fn(() => true) });
+    const tracker = guardedTracker(ads);
+    tracker.state = { isBuffering: true };
+
+    expect(tracker.canCloseContentTransition("isBuffering")).toBe(true);
+    expect(tracker.canCloseContentTransition("isSeeking")).toBe(false);
+  });
+
+  it("allows closing anything when no break is in progress", () => {
+    const tracker = guardedTracker(fakeAdsTracker());
+    expect(tracker.canCloseContentTransition("isBuffering")).toBe(true);
+  });
+});
+
+describe("CONTENT_START", () => {
+  it("emits CONTENT_START from playbackTimeUpdated, not playbackPlaying", () => {
+    const tracker = guardedTracker(undefined);
+
+    tracker.onPlaying();
+    expect(tracker.sendStart).not.toHaveBeenCalled();
+    expect(tracker.sendResume).toHaveBeenCalled();
+
+    tracker.onTimeUpdated();
+    expect(tracker.sendStart).toHaveBeenCalledTimes(1);
+  });
+
+  it("registers playbackTimeUpdated", () => {
+    const tracker = guardedTracker(undefined);
+    tracker.registerListeners();
+    expect(tracker.player.on).toHaveBeenCalledWith(
+      "playbackTimeUpdated",
+      expect.any(Function)
+    );
+  });
+
+  // Suppressing sendStart in onPlaying ALONE would lose CONTENT_START for the
+  // session rather than defer it: playbackPlaying does not fire again at a
+  // seamless SSAI boundary, and video-core never retries (spec 9.2.1).
+  it("emits CONTENT_START after a pre-roll ends, not during it", () => {
+    const ads = fakeAdsTracker({ isAdPlaying: jest.fn(() => true) });
+    const tracker = guardedTracker(ads);
+
+    tracker.onPlaying();
+    tracker.onTimeUpdated();
+    tracker.onTimeUpdated();
+    expect(tracker.sendStart).not.toHaveBeenCalled();
+
+    ads.isAdPlaying.mockReturnValue(false); // break ends
+    tracker.onTimeUpdated();
+
+    expect(tracker.sendStart).toHaveBeenCalledTimes(1);
+  });
+
+  // playbackTimeUpdated fires continuously, so the tracker calls sendStart on
+  // every ungated tick and video-core's isStarted flag collapses them to one
+  // CONTENT_START. The project mock cannot observe that, so this replays the
+  // real gate (video-core 5.1.1) and asserts the REPORTED count — proving a
+  // future guard change cannot produce a second start.
+  it("emits CONTENT_START exactly once across a whole session", () => {
+    const ads = fakeAdsTracker({ isAdPlaying: jest.fn(() => false) });
+    const tracker = guardedTracker(ads);
+    const reported = [];
+    let isStarted = false;
+    tracker.sendStart = () => {
+      if (isStarted) return; // goStart() is a no-op once isStarted is set
+      isStarted = true;
+      reported.push("CONTENT_START");
+    };
+
+    for (let i = 0; i < 5; i += 1) tracker.onTimeUpdated();
+    ads.isAdPlaying.mockReturnValue(true); // mid-roll
+    for (let i = 0; i < 5; i += 1) tracker.onTimeUpdated();
+    ads.isAdPlaying.mockReturnValue(false);
+    for (let i = 0; i < 5; i += 1) tracker.onTimeUpdated();
+
+    expect(reported).toEqual(["CONTENT_START"]);
+  });
+
+  it("does not emit CONTENT_START before the playhead has advanced", () => {
+    const tracker = guardedTracker(undefined, { time: jest.fn(() => 0) });
+    tracker.onTimeUpdated();
+    expect(tracker.sendStart).not.toHaveBeenCalled();
+  });
+
+  // Deliberately unguarded: the viewer DID request content. video-core
+  // subtracts total ad time from startupTime, so this ordering is what makes
+  // that KPI correct.
+  it("does not guard onPlay, so CONTENT_REQUEST still fires before a pre-roll", () => {
+    const tracker = guardedTracker(fakeAdsTracker({ isAdPlaying: () => true }));
+    tracker.onPlay();
+    expect(tracker.sendRequest).toHaveBeenCalled();
+  });
+});
+
+describe("guarded content transitions during a break", () => {
+  it("suppresses content pause, seek start and buffer start during a break", () => {
+    const tracker = guardedTracker(fakeAdsTracker({ isAdPlaying: () => true }));
+
+    tracker.onPause();
+    tracker.onSeeking();
+    tracker.onBufferingStalled();
+    tracker.onPlaying();
+
+    expect(tracker.sendPause).not.toHaveBeenCalled();
+    expect(tracker.sendSeekStart).not.toHaveBeenCalled();
+    expect(tracker.sendBufferStart).not.toHaveBeenCalled();
+    expect(tracker.sendResume).not.toHaveBeenCalled();
+  });
+
+  it("still closes a buffer or seek that was already open when the break began", () => {
+    const tracker = guardedTracker(fakeAdsTracker({ isAdPlaying: () => true }));
+    tracker.state = { isBuffering: true, isSeeking: true };
+
+    tracker.onBufferingLoaded();
+    tracker.onSeeked();
+
+    expect(tracker.sendBufferEnd).toHaveBeenCalled();
+    expect(tracker.sendSeekEnd).toHaveBeenCalled();
+  });
+
+  it("does not close a transition that was never open during a break", () => {
+    const tracker = guardedTracker(fakeAdsTracker({ isAdPlaying: () => true }));
+    tracker.state = {};
+
+    tracker.onBufferingLoaded();
+    tracker.onSeeked();
+
+    expect(tracker.sendBufferEnd).not.toHaveBeenCalled();
+    expect(tracker.sendSeekEnd).not.toHaveBeenCalled();
+  });
+
+  it("reports all content transitions normally with no ads tracker", () => {
+    const tracker = guardedTracker(undefined);
+
+    tracker.onPause();
+    tracker.onSeeking();
+    tracker.onBufferingStalled();
+    tracker.onBufferingLoaded();
+    tracker.onSeeked();
+    tracker.onPlaying();
+
+    expect(tracker.sendPause).toHaveBeenCalled();
+    expect(tracker.sendSeekStart).toHaveBeenCalled();
+    expect(tracker.sendBufferStart).toHaveBeenCalled();
+    expect(tracker.sendBufferEnd).toHaveBeenCalled();
+    expect(tracker.sendSeekEnd).toHaveBeenCalled();
+    expect(tracker.sendResume).toHaveBeenCalled();
   });
 });
