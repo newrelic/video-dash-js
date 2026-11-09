@@ -488,8 +488,206 @@ export default class DaiTracker extends nrvideo.VideoTracker {
     return 'google-dai';
   }
 
+  /**
+   * Under SSAI the player rendering the ad IS dash.js, and the content tracker
+   * already derives its version from `player.getVersion()`, so reporting
+   * 'unknown' would throw away information we hold.
+   *
+   * This is a deliberate divergence from hls.js, which hardcodes 'unknown'
+   * because the DAI SDK exposes no version of its own. It is a better value in
+   * the same attribute, not a data-model change (spec 7.8). Do not "restore
+   * parity" by reverting it.
+   */
+  getPlayerVersion() {
+    return this.contentTracker?.getPlayerVersion?.() ?? 'unknown';
+  }
+
+  getSrc() {
+    return this.streamData?.url ?? null;
+  }
+
+  getVideoId() {
+    return this.currentAdData?.adId ?? null;
+  }
+
+  getAdCreativeId() {
+    return this.currentAdData?.creativeId ?? null;
+  }
+
+  getTitle() {
+    return this.currentAdData?.title ?? null;
+  }
+
+  /**
+   * The ad's length in ms, from `ad.getDuration()` — NOT
+   * `adProgressData.duration` (spec 7.7.2).
+   *
+   * Both are available: measured 10 and 9.976 for the same ad. This one wins
+   * because it is known from AD_START, before any progress tick, and stays
+   * constant for the whole ad. A duration that changes mid-ad invites distrust
+   * of the whole dataset.
+   *
+   * Accepted consequence: adPlayhead tops out near 9.976s while this reports
+   * 10000ms, so adPlayhead / adDuration caps at about 99.76% and a condition
+   * written `adPlayhead >= adDuration` never fires. Measure ad completion from
+   * AD_END or the third quartile.
+   */
+  getDuration() {
+    const duration = this.currentAdData?.duration;
+    return duration === undefined || duration === null ? null : duration * 1000;
+  }
+
   getClickThroughUrl() {
     return this.currentAdData?.clickThroughUrl ?? null;
+  }
+
+  /**
+   * 'live', 'vod', or null when unknown.
+   *
+   * Comes from the content tracker, which reads dash.js's `isDynamic()`. A DAI
+   * live stream's duration is a finite DVR window rather than Infinity
+   * (measured: 60), so a duration-based test reported every live stream as VOD.
+   * StreamData carries no stream type of its own to consult.
+   */
+  getStreamType() {
+    const live = this.contentTracker?.isLive?.();
+    if (typeof live === 'boolean') return live ? 'live' : 'vod';
+    return null;
+  }
+
+  isLiveStream() {
+    return this.getStreamType() === 'live';
+  }
+
+  isMuted() {
+    return this.tag?.muted;
+  }
+
+  // The stitched stream is decoded by the same dash.js instance during ads, so
+  // all quality data lives on the content tracker, not the StreamManager. This
+  // also inherits DashTracker's existing dash.js 4-vs-5 branching for free.
+  getBitrate() {
+    return this.contentTracker?.getBitrate?.() ?? null;
+  }
+
+  getRenditionBitrate() {
+    return this.contentTracker?.getBitrate?.() ?? null;
+  }
+
+  getRenditionHeight() {
+    return this.contentTracker?.getRenditionHeight?.() ?? null;
+  }
+
+  getRenditionWidth() {
+    return this.contentTracker?.getRenditionWidth?.() ?? null;
+  }
+
+  getRenditionName() {
+    return this.contentTracker?.getRenditionName?.() ?? null;
+  }
+
+  /**
+   * adPlayhead, in ms: the SDK's own ad-relative clock while an ad is on
+   * screen, and the stitched stream clock otherwise.
+   *
+   * `adProgressData.currentTime` is ad-relative and starts at 0 — measured
+   * climbing 0.267 -> 0.531 -> 0.797 across one ad — which is exactly what
+   * adPlayhead means. There is no offset field and no per-ad rebasing: unlike
+   * hls.js, nothing is subtracted (spec 7.7).
+   *
+   * Returns 0 for an ad in flight whose first progress tick has not arrived,
+   * which is the correct value at that moment and, crucially, not the stitched
+   * stream position.
+   */
+  getPlayhead() {
+    if (this.hasAdInFlight()) {
+      const currentTime = this.adProgressData?.currentTime;
+      return typeof currentTime === 'number' ? currentTime * 1000 : 0;
+    }
+    return this.getStreamTimeMs();
+  }
+
+  /**
+   * The stitched stream's own clock, in ms — the timeline cue points and the
+   * SDK's time conversions are expressed in. Anything comparing against DAI
+   * stream positions wants this, NOT getPlayhead(), which is ad-relative while
+   * an ad is on screen.
+   *
+   * Reads the video element rather than `player.time()`. Measured, the two are
+   * identical on both VOD and live, but the element is the source that exists
+   * earliest: at the first CUEPOINTS_CHANGED, which precedes attachSource,
+   * `player.time()` throws while `video.currentTime` reads 0.
+   *
+   * tag is null on a disposed tracker, and this runs from the content tracker's
+   * event handlers, so it must not throw.
+   */
+  getStreamTimeMs() {
+    return (this.tag?.currentTime ?? 0) * 1000;
+  }
+
+  /**
+   * Stream time to content time, for the content tracker's playhead and
+   * duration. Returns undefined when the SDK cannot convert — including on a
+   * disposed tracker — so the caller keeps reporting stream time rather than a
+   * wrong number.
+   *
+   * Measured behaviour: on VOD it subtracts the ad time played so far (gap
+   * exactly 10.010 after a 10.01s pre-roll, and 0 during it); on live it
+   * returns the input unchanged, for both the playhead and the DVR duration.
+   */
+  contentTimeForStreamTime(streamTime) {
+    try {
+      const contentTime = this.player?.contentTimeForStreamTime?.(streamTime);
+      return typeof contentTime === 'number' ? contentTime : undefined;
+    } catch (error) {
+      nrvideo.Log.warn('DaiTracker: Failed to convert stream time', error);
+      return undefined;
+    }
+  }
+
+  /**
+   * True while an ad is on screen. Checked by DashTracker so content QoE stands
+   * down during breaks.
+   *
+   * AD_BREAK_STARTED arrives only after playback has already entered the ad —
+   * expected SSAI behaviour, since on live the SDK cannot know about a break
+   * before its metadata arrives — so the break object alone misses the first
+   * moments of a pre-roll. The cue points, known ahead of playback, cover that
+   * window.
+   *
+   * Known limitation: cue points are a VOD facility in DAI. The live asset
+   * reported none, so on live this degrades to the break object alone and a
+   * live pre-roll can still report CONTENT_START a moment early. That single
+   * arm is therefore the entire content guard on live.
+   */
+  isAdPlaying() {
+    // video-core's disposeAdsTracker() calls dispose(), which nulls this
+    // tracker's player and tag, but never clears the PARENT's adsTracker
+    // reference — verified in 5.1.1 source. So the content guard keeps calling
+    // in after setAdsTracker(null). A disposed tracker is not playing anything.
+    if (!this.player && !this.tag) return false;
+
+    if (this.adBreakData) return true;
+
+    const cuePoints = this.cuePoints;
+    if (!cuePoints?.length) return false;
+
+    // Stream time, not getPlayhead(): cue point windows are stream times, and
+    // the ad-relative value would never fall inside a mid-roll's window.
+    const streamTime = this.getStreamTimeMs() / 1000;
+    if (!Number.isFinite(streamTime)) return false;
+
+    // Skip windows already played: seeking back into a watched pre-roll gets no
+    // fresh ad telemetry, so suppressing content there would lose it outright.
+    return cuePoints.some(
+      (cue) =>
+        cue?.played !== true &&
+        typeof cue?.start === 'number' &&
+        typeof cue?.end === 'number' &&
+        cue.end > cue.start &&
+        streamTime >= cue.start &&
+        streamTime < cue.end
+    );
   }
 
   /**

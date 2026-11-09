@@ -892,3 +892,349 @@ describe('DaiTracker — replayed video-core 5.1.1 gating', () => {
     expect(second.indexOf('AD_START')).toBeLessThan(second.indexOf('AD_QUARTILE1'));
   });
 });
+
+describe('DaiTracker — cue points', () => {
+  // Cue points live on StreamData; the StreamEvent has no getCuepoints().
+  it('reads cue points from StreamData, not a getCuepoints() accessor', () => {
+    const { sm, tracker } = makeTracker();
+    const cuepoints = [
+      { start: 0, end: 10.01, played: true },
+      { start: 310.012, end: 320.022, played: false },
+    ];
+
+    sm._emit(StreamEventType.CUEPOINTS_CHANGED, {
+      getStreamData: () => ({ cuepoints }),
+      // A getCuepoints() accessor must be ignored — the real SDK has none, so
+      // reading one would be coding against an API that does not exist.
+      getCuepoints: () => [{ start: 999, end: 1000 }],
+    });
+
+    expect(tracker.getAdCuePoints()).toEqual(cuepoints);
+  });
+
+  // Only CUEPOINTS_CHANGED carries them; other events report null, so a missing
+  // list must leave the known one untouched rather than clearing it.
+  it('leaves a known cue point list untouched when an event carries none', () => {
+    const { sm, tracker } = makeTracker();
+
+    sm._emit(StreamEventType.CUEPOINTS_CHANGED, {
+      getStreamData: () => ({ cuepoints: [{ start: 0, end: 10 }] }),
+    });
+    sm._emit(StreamEventType.CUEPOINTS_CHANGED, {
+      getStreamData: () => ({ cuepoints: null }),
+    });
+
+    expect(tracker.getAdCuePoints()).toHaveLength(1);
+  });
+});
+
+describe('DaiTracker — the two clocks', () => {
+  // adPlayhead comes straight from the SDK (spec 7.7). Measured climbing
+  // 0.267 -> 0.531 -> 0.797 within one ad, ad-relative and starting at 0.
+  it('getPlayhead() reports adProgressData.currentTime in ms', () => {
+    const { sm, tracker } = makeTracker();
+
+    sm._emit(StreamEventType.STARTED, startedEvent());
+    sm._emit(StreamEventType.AD_PROGRESS, progressEvent({
+      currentTime: 0.267, duration: 9.976, totalAds: 3,
+    }));
+
+    expect(tracker.getPlayhead()).toBe(267);
+  });
+
+  it('getPlayhead() returns 0 for an ad in flight before the first progress tick', () => {
+    const { sm, tracker } = makeTracker(); // tag.currentTime is 3
+
+    sm._emit(StreamEventType.STARTED, startedEvent());
+
+    // 0 is the correct value at that moment anyway — and crucially NOT the
+    // stitched stream time of 3000.
+    expect(tracker.getPlayhead()).toBe(0);
+  });
+
+  it("getPlayhead() does not leak the previous ad's progress into the next ad", () => {
+    const { sm, tracker } = makeTracker();
+
+    sm._emit(StreamEventType.STARTED, startedEvent({ adId: 'a1' }));
+    sm._emit(StreamEventType.AD_PROGRESS, progressEvent({ currentTime: 9.5, duration: 10 }));
+    expect(tracker.getPlayhead()).toBe(9500);
+
+    sm._emit(StreamEventType.COMPLETE, {});
+    sm._emit(StreamEventType.STARTED, startedEvent({ adId: 'a2' }));
+
+    expect(tracker.getPlayhead()).toBe(0);
+  });
+
+  it('getPlayhead() goes back to stream time once the ad ends', () => {
+    const tag = createMockTag(42);
+    const sm = createMockStreamManager();
+    const tracker = new DaiTracker(sm, { tag });
+
+    sm._emit(StreamEventType.STARTED, startedEvent());
+    sm._emit(StreamEventType.AD_PROGRESS, progressEvent({ currentTime: 5, duration: 10 }));
+    sm._emit(StreamEventType.COMPLETE, {});
+
+    expect(tracker.getPlayhead()).toBe(42000);
+  });
+
+  // The stitched clock, which cue points and the SDK's conversions are
+  // expressed in. Measured: video.currentTime and player.time() are identical
+  // on both VOD and live, so the video element is the right source.
+  it('getStreamTimeMs() reports the stitched clock from the video element', () => {
+    const sm = createMockStreamManager();
+    const tracker = new DaiTracker(sm, { tag: createMockTag(12.5) });
+    expect(tracker.getStreamTimeMs()).toBe(12500);
+  });
+
+  it('converts stream time to content time through the StreamManager', () => {
+    const sm = createMockStreamManager();
+    sm.contentTimeForStreamTime = jest.fn(() => 10.5);
+    const tracker = new DaiTracker(sm, { tag: createMockTag() });
+
+    expect(tracker.contentTimeForStreamTime(20.51)).toBe(10.5);
+    expect(sm.contentTimeForStreamTime).toHaveBeenCalledWith(20.51);
+  });
+
+  it('returns undefined when the SDK cannot convert, so the caller keeps stream time', () => {
+    const sm = createMockStreamManager();
+    sm.contentTimeForStreamTime = jest.fn(() => {
+      throw new Error('nope');
+    });
+    const tracker = new DaiTracker(sm, { tag: createMockTag() });
+
+    expect(tracker.contentTimeForStreamTime(5)).toBeUndefined();
+  });
+});
+
+describe('DaiTracker — isAdPlaying', () => {
+  const cuePoints = [
+    { start: 0, end: 10.01, played: false },
+    { start: 310.012, end: 320.022, played: false },
+  ];
+
+  function withCuePoints(currentTime) {
+    const sm = createMockStreamManager();
+    const tracker = new DaiTracker(sm, { tag: createMockTag(currentTime) });
+    sm._emit(StreamEventType.CUEPOINTS_CHANGED, {
+      getStreamData: () => ({ cuepoints: cuePoints.map((c) => ({ ...c })) }),
+    });
+    return { sm, tracker };
+  }
+
+  // AD_BREAK_STARTED arrives only after playback has entered the ad, so the
+  // break object alone misses the first moments of a pre-roll. Cue points, known
+  // ahead of playback, cover that window.
+  it('isAdPlaying() matches cue points against stream time while an ad is in flight', () => {
+    expect(withCuePoints(5).tracker.isAdPlaying()).toBe(true);
+    expect(withCuePoints(315).tracker.isAdPlaying()).toBe(true);
+    expect(withCuePoints(100).tracker.isAdPlaying()).toBe(false);
+    // End is exclusive.
+    expect(withCuePoints(10.01).tracker.isAdPlaying()).toBe(false);
+  });
+
+  // Seeking back into a watched pre-roll gets no fresh ad telemetry, so
+  // suppressing content there would lose it outright.
+  it('isAdPlaying() skips cue point windows already played', () => {
+    const sm = createMockStreamManager();
+    const tracker = new DaiTracker(sm, { tag: createMockTag(5) });
+    sm._emit(StreamEventType.CUEPOINTS_CHANGED, {
+      getStreamData: () => ({ cuepoints: [{ start: 0, end: 10.01, played: true }] }),
+    });
+
+    expect(tracker.isAdPlaying()).toBe(false);
+  });
+
+  // Cue points are a VOD-only facility in DAI — the live asset reported none —
+  // so this fallback is the path ALL live traffic takes. It is the entire
+  // content guard on live, which is why it gets its own test here (spec 13.6).
+  it('isAdPlaying() returns true from the break object alone when there are no cue points', () => {
+    const { sm, tracker } = makeTracker();
+    expect(tracker.getAdCuePoints()).toEqual([]);
+
+    expect(tracker.isAdPlaying()).toBe(false);
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    expect(tracker.isAdPlaying()).toBe(true);
+    sm._emit(StreamEventType.AD_BREAK_ENDED, {});
+    expect(tracker.isAdPlaying()).toBe(false);
+  });
+
+  // isAdPlaying reads getStreamTimeMs(), NOT getPlayhead(): cue point windows
+  // are stream times, and the ad-relative playhead would break them.
+  it('isAdPlaying() uses stream time, not the ad-relative playhead', () => {
+    const sm = createMockStreamManager();
+    const tracker = new DaiTracker(sm, { tag: createMockTag(315) });
+    sm._emit(StreamEventType.CUEPOINTS_CHANGED, {
+      getStreamData: () => ({ cuepoints: [{ start: 310.012, end: 320.022, played: false }] }),
+    });
+    // An ad-relative playhead of 1s would fall outside the 310-320 window and
+    // report false.
+    sm._emit(StreamEventType.STARTED, startedEvent());
+    sm._emit(StreamEventType.AD_PROGRESS, progressEvent({ currentTime: 1, duration: 10 }));
+
+    expect(tracker.getPlayhead()).toBe(1000);
+    expect(tracker.isAdPlaying()).toBe(true);
+  });
+
+  // Review Focus 3. video-core's disposeAdsTracker() calls dispose(), which
+  // nulls this tracker's player and tag, but never clears the PARENT's
+  // adsTracker reference — verified in video-core 5.1.1 source. So the content
+  // guard keeps calling in after setAdsTracker(null).
+  it('stays inert after being disposed instead of throwing', () => {
+    const { sm, tracker } = makeTracker();
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    expect(tracker.isAdPlaying()).toBe(true);
+
+    tracker.dispose();
+
+    expect(tracker.isAdPlaying()).toBe(false);
+    expect(() => tracker.getPlayhead()).not.toThrow();
+    expect(() => tracker.getStreamTimeMs()).not.toThrow();
+    expect(() => tracker.contentTimeForStreamTime(5)).not.toThrow();
+  });
+});
+
+describe('DaiTracker — ad metadata getters', () => {
+  it('reports ad identity from the current ad', () => {
+    const { sm, tracker } = makeTracker();
+    sm._emit(StreamEventType.STARTED, startedEvent({ adId: 'ad-9', creativeId: 'cr-9' }));
+
+    expect(tracker.getVideoId()).toBe('ad-9');
+    expect(tracker.getAdCreativeId()).toBe('cr-9');
+    expect(tracker.getTitle()).toBe('An ad');
+  });
+
+  it('reports null identity when no ad is in flight', () => {
+    const { tracker } = makeTracker();
+    expect(tracker.getVideoId()).toBeNull();
+    expect(tracker.getAdCreativeId()).toBeNull();
+    expect(tracker.getTitle()).toBeNull();
+    expect(tracker.getDuration()).toBeNull();
+  });
+
+  // Pins spec 7.7.2. ad.getDuration() is available from AD_START and stays
+  // constant; adProgressData.duration is finer-grained but changes mid-ad, and
+  // a duration that moves invites distrust of the whole dataset.
+  it('getDuration() reports ad.getDuration() in ms, not adProgressData.duration', () => {
+    const { sm, tracker } = makeTracker();
+
+    sm._emit(StreamEventType.STARTED, startedEvent({ duration: 10 }));
+    sm._emit(StreamEventType.AD_PROGRESS, progressEvent({
+      currentTime: 9.9, duration: 9.976, totalAds: 3,
+    }));
+
+    expect(tracker.getDuration()).toBe(10000);
+  });
+
+  // Documented consequence of the choice above: the two never quite meet, so
+  // adPlayhead >= adDuration never fires and completion must come from AD_END
+  // or the third quartile.
+  it('leaves adPlayhead short of adDuration at the end of an ad', () => {
+    const { sm, tracker } = makeTracker();
+
+    sm._emit(StreamEventType.STARTED, startedEvent({ duration: 10 }));
+    sm._emit(StreamEventType.AD_PROGRESS, progressEvent({
+      currentTime: 9.976, duration: 9.976,
+    }));
+
+    expect(tracker.getPlayhead()).toBeLessThan(tracker.getDuration());
+    expect(tracker.getPlayhead() / tracker.getDuration()).toBeCloseTo(0.9976, 4);
+  });
+
+  it('reports the stitched stream url as src', () => {
+    const { sm, tracker } = makeTracker();
+    expect(tracker.getSrc()).toBeNull();
+
+    sm._emit(StreamEventType.LOADED, {
+      getStreamData: () => ({ streamId: 's', url: 'https://example.test/s.mpd' }),
+    });
+
+    expect(tracker.getSrc()).toBe('https://example.test/s.mpd');
+  });
+
+  it('reports the muted state from the video element', () => {
+    const tag = createMockTag();
+    const sm = createMockStreamManager();
+    const tracker = new DaiTracker(sm, { tag });
+
+    expect(tracker.isMuted()).toBe(false);
+    tag.muted = true;
+    expect(tracker.isMuted()).toBe(true);
+  });
+});
+
+describe('DaiTracker — content tracker delegation', () => {
+  function withContentTracker(overrides = {}) {
+    const contentTracker = {
+      isLive: jest.fn(() => true),
+      getBitrate: jest.fn(() => 2142460),
+      getRenditionHeight: jest.fn(() => 720),
+      getRenditionWidth: jest.fn(() => 1280),
+      getRenditionName: jest.fn(() => '720p'),
+      getPlayerVersion: jest.fn(() => '5.3.0'),
+      ...overrides,
+    };
+    const sm = createMockStreamManager();
+    const tracker = new DaiTracker(sm, { tag: createMockTag(), contentTracker });
+    return { sm, tracker, contentTracker };
+  }
+
+  // A DAI live stream's duration is a growing DVR window rather than Infinity
+  // (measured: 60), so a duration-based test reports every live stream as VOD.
+  // StreamData carries no stream type of its own.
+  it('getStreamType() reports live from the content tracker', () => {
+    const { tracker, contentTracker } = withContentTracker();
+    expect(tracker.getStreamType()).toBe('live');
+    expect(tracker.isLiveStream()).toBe(true);
+
+    contentTracker.isLive.mockReturnValue(false);
+    expect(tracker.getStreamType()).toBe('vod');
+    expect(tracker.isLiveStream()).toBe(false);
+  });
+
+  it('getStreamType() reports null when the live flag is unknown', () => {
+    const { tracker } = withContentTracker({ isLive: () => undefined });
+    expect(tracker.getStreamType()).toBeNull();
+  });
+
+  // The stitched stream is decoded by the same dash.js instance during ads, so
+  // all quality data lives on the content tracker, not the StreamManager. This
+  // also inherits the existing dash.js 4-vs-5 branching for free.
+  it('delegates bitrate and rendition getters to the content tracker', () => {
+    const { tracker } = withContentTracker();
+
+    expect(tracker.getBitrate()).toBe(2142460);
+    expect(tracker.getRenditionBitrate()).toBe(2142460);
+    expect(tracker.getRenditionHeight()).toBe(720);
+    expect(tracker.getRenditionWidth()).toBe(1280);
+    expect(tracker.getRenditionName()).toBe('720p');
+  });
+
+  it('returns null from rendition getters when no content tracker was supplied', () => {
+    const { tracker } = makeTracker({ contentTracker: null });
+
+    expect(tracker.getBitrate()).toBeNull();
+    expect(tracker.getRenditionBitrate()).toBeNull();
+    expect(tracker.getRenditionHeight()).toBeNull();
+    expect(tracker.getRenditionWidth()).toBeNull();
+    expect(tracker.getRenditionName()).toBeNull();
+    expect(tracker.getStreamType()).toBeNull();
+  });
+
+  // Deliberate divergence from hls.js, which hardcodes 'unknown'. Under SSAI
+  // the player rendering the ad IS dash.js, so reporting 'unknown' throws away
+  // information we hold (spec 7.8). Do not "restore parity" by reverting this.
+  it('reports the real dash.js version as playerVersion', () => {
+    const { tracker } = withContentTracker();
+    expect(tracker.getPlayerVersion()).toBe('5.3.0');
+  });
+
+  it('falls back to unknown when no content tracker was supplied', () => {
+    const { tracker } = makeTracker({ contentTracker: null });
+    expect(tracker.getPlayerVersion()).toBe('unknown');
+  });
+
+  it('falls back to unknown when the content tracker cannot report a version', () => {
+    const { tracker } = withContentTracker({ getPlayerVersion: undefined });
+    expect(tracker.getPlayerVersion()).toBe('unknown');
+  });
+});
