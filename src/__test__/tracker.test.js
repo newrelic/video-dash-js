@@ -896,3 +896,82 @@ describe("rendition changes during ad breaks", () => {
     expect(tracker.sendRenditionChanged).toHaveBeenCalled();
   });
 });
+
+// ---------------------------------------------------------------------------
+// Error robustness, and the fatality question (spec 9.4)
+//
+// MEASURED 2026-11-09 against dash.js 5.3.0 by forcing a manifest 404:
+//
+//   Object.keys(e)       -> ['error', 'type']
+//   Object.keys(e.error) -> ['code', 'message', 'data']
+//   'fatal' in e.error   -> false
+//   e.error.severity     -> undefined
+//
+// There is no fatality flag and no severity field. None of dash.js's 87 events
+// matches /WARN|RECOVER|RETRY/, and MediaPlayer.errors is a registry of code
+// constants and messages that classifies WHAT failed, never how badly. So
+// hls.js's `data.fatal === false` filter has nothing to port, and no predicate
+// is invented to mimic it — reporting every error is correct behaviour here
+// rather than an oversight.
+// ---------------------------------------------------------------------------
+describe("onError", () => {
+  // Review Focus 5. e.error.code was dereferenced unguarded, so an error event
+  // without an error payload threw straight into dash.js's event dispatch.
+  it("does not throw when an error event carries no error payload", () => {
+    const tracker = guardedTracker(undefined);
+
+    expect(() => tracker.onError({ type: "error" })).not.toThrow();
+    expect(() => tracker.onError({})).not.toThrow();
+    expect(() => tracker.onError(undefined)).not.toThrow();
+  });
+
+  it("still reports an error when the payload is missing, rather than staying silent", () => {
+    const tracker = guardedTracker(undefined);
+
+    tracker.onError({ type: "error" });
+
+    expect(tracker.sendError).toHaveBeenCalledWith({
+      errorCode: undefined,
+      errorMessage: "Unknown dash.js error",
+    });
+  });
+
+  it("still reports errorCode and errorMessage when the payload is present", () => {
+    const tracker = guardedTracker(undefined);
+
+    tracker.onError({
+      type: "error",
+      error: {
+        code: 25,
+        message: "http://localhost:8777/does-not-exist.mpd is not available",
+        data: { request: {}, response: {} },
+      },
+    });
+
+    expect(tracker.sendError).toHaveBeenCalledWith({
+      errorCode: 25,
+      errorMessage: "http://localhost:8777/does-not-exist.mpd is not available",
+    });
+  });
+
+  // Pins the measured finding. If a future dash.js adds a fatality flag this
+  // test is the place to revisit — but it must not be "fixed" by inventing a
+  // code allowlist, which would be a guess dressed as a filter.
+  it("reports every error, because dash.js exposes no fatality flag", () => {
+    const tracker = guardedTracker(undefined);
+
+    tracker.onError({ type: "error", error: { code: 25, message: "manifest 404" } });
+    tracker.onError({ type: "playbackError", error: { code: 10, message: "append" } });
+    tracker.onError({ type: "error", error: { code: 23, message: "fragment" } });
+
+    expect(tracker.sendError).toHaveBeenCalledTimes(3);
+  });
+
+  it("is registered for both the error and playbackError channels", () => {
+    const tracker = guardedTracker(undefined);
+    tracker.registerListeners();
+
+    expect(tracker.player.on).toHaveBeenCalledWith("error", expect.any(Function));
+    expect(tracker.player.on).toHaveBeenCalledWith("playbackError", expect.any(Function));
+  });
+});

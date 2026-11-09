@@ -505,8 +505,29 @@ export default class DashTracker extends nrvideo.VideoTracker {
     this.sendSeekEnd();
   }
 
+  /**
+   * Registered for both `error` and `playbackError`.
+   *
+   * `e.error.code` used to be dereferenced unguarded, so an error event with no
+   * `error` payload threw straight into dash.js's event dispatch.
+   *
+   * No fatality filter, deliberately. hls.js drops `data.fatal === false`
+   * because it raises recoverable conditions on the same event as real
+   * failures. dash.js has no equivalent: measured against 5.3.0, the payload is
+   * `{ code, message, data }` with no `fatal` and no `severity`, none of its 87
+   * events is a warning channel, and `MediaPlayer.errors` classifies what
+   * failed rather than how badly. So every error is reported, which is correct
+   * behaviour here rather than an oversight — and a code-number allowlist
+   * invented to mimic hls.js would be a guess dressed as a filter (spec 9.4).
+   */
   onError(e) {
-    this.sendError({ errorCode: e.error.code, errorMessage: e.error.message });
+    const error = e?.error;
+    this.sendError({
+      errorCode: error?.code,
+      // Better a placeholder than a silent or empty error: an event reached us,
+      // so something did fail.
+      errorMessage: error?.message ?? 'Unknown dash.js error',
+    });
   }
 
   onEnded() {
