@@ -157,8 +157,13 @@ function createMockStreamManager() {
     addEventListener: jest.fn((type, cb) => {
       listeners[type] = cb;
     }),
-    removeEventListener: jest.fn((type) => {
-      delete listeners[type];
+    // Honours the handler argument, as the real StreamManager does: it matches
+    // on the function reference. An earlier version of this mock ignored it,
+    // which made the "removes the wrapped listeners" assertions pass even if
+    // unregisterListeners had passed entirely different functions — the exact
+    // bug those tests exist to catch.
+    removeEventListener: jest.fn((type, cb) => {
+      if (listeners[type] === cb) delete listeners[type];
     }),
     contentTimeForStreamTime: jest.fn((streamTime) => streamTime),
     _emit(type, event) {
