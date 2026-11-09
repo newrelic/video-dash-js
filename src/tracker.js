@@ -202,9 +202,28 @@ export default class DashTracker extends nrvideo.VideoTracker {
     }
   }
 
+  /**
+   * Whether to use dash.js 5's quality APIs.
+   *
+   * Feature-detected BEFORE the version is consulted, because `majorVersion`
+   * cannot be trusted on its own: `getVersion()` returning nothing leaves it
+   * undefined, and a 'v5.3.0' string makes `parseInt('v5')` NaN — in both
+   * cases `>= 5` is false, so a real dash.js 5 player would take the v4 branch,
+   * find `getQualityFor` missing, and report null quality for the whole
+   * session. With 'v5.3.0' not even the constructor's console.error fires,
+   * because the version string is truthy (Global Constraints, spec 13.5).
+   */
+  usesV5QualityApi() {
+    if (typeof this.player?.getRepresentationsByType === 'function') return true;
+    if (typeof this.player?.getCurrentRepresentationForType === 'function') return true;
+    // A player with the v4 API and no v5 API is v4, whatever it claims.
+    if (typeof this.player?.getQualityFor === 'function') return false;
+    return this.majorVersion >= 5;
+  }
+
   getDashBitrate(type) {
     try {
-      if (this.majorVersion >= 5) {
+      if (this.usesV5QualityApi()) {
         return this.player.getCurrentRepresentationForType(type) || null;
       } else {
         const qualityIndex = this.player.getQualityFor(type);
@@ -219,7 +238,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
   getBitrate() {
     try {
       const currentBitrate = this.getDashBitrate('video');
-      if (this.majorVersion >= 5) {
+      if (this.usesV5QualityApi()) {
         return currentBitrate?.bandwidth ?? null;
       }
       return currentBitrate?.bitrate ?? null;
@@ -232,7 +251,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
   // contentManifestBitrate: Max combined (video + audio) bitrate defined in the MPD
   getManifestBitrate() {
     try {
-      if (this.majorVersion >= 5) {
+      if (this.usesV5QualityApi()) {
         if (typeof this.player.getRepresentationsByType === 'function') {
           const videoReps = this.player.getRepresentationsByType('video');
           const audioReps = this.player.getRepresentationsByType('audio');
@@ -349,7 +368,7 @@ export default class DashTracker extends nrvideo.VideoTracker {
     try {
       if (qualityIndex == null || qualityIndex < 0) return null;
 
-      if (this.majorVersion >= 5) {
+      if (this.usesV5QualityApi()) {
         const representations = this.player.getRepresentationsByType(type);
         if (representations && representations[qualityIndex]) {
           return representations[qualityIndex].bandwidth ?? null;
@@ -457,10 +476,17 @@ export default class DashTracker extends nrvideo.VideoTracker {
   }
 
   onPlaying() {
-    // Content is not resuming during an ad. sendStart() deliberately does NOT
-    // live here any more — see onTimeUpdated.
+    // Content is not resuming during an ad.
     if (this.isAdsTrackerActive()) return;
     this.sendResume();
+    // CONTENT_START stays here for sessions with no ad break in progress,
+    // which keeps the existing timing — and therefore startupTime, which is
+    // fixed at CONTENT_START — unchanged for every customer who shows no ads.
+    // Moving it unconditionally to playbackTimeUpdated would have delayed it
+    // by up to one timeupdate interval (~250ms) for all of them, a KPI shift
+    // for people who get no benefit from the move. onTimeUpdated is the
+    // recovery path that makes the DAI case work; see there.
+    this.sendStart();
   }
 
   /**
@@ -474,10 +500,14 @@ export default class DashTracker extends nrvideo.VideoTracker {
    * pause, no rebuffer, no second `playing`. video-core only sets content
    * isStarted from sendStart() and never retries, so nothing would recover it.
    *
-   * `playbackTimeUpdated` keeps firing, so the guard defers the start to the
+   * `playbackTimeUpdated` keeps firing, so this recovers the start on the
    * first tick after the break ends. Verified present in both dash.js 4.7.4
    * and 5.3.0 (spec 9.2.1). This mirrors hls.js, which gets the same behaviour
    * by accident of placement — its sendStart lives in onTimeupdate.
+   *
+   * onPlaying still reports the start when no break is in progress, so this is
+   * purely additive: video-core gates the second call on isStarted, and a
+   * customer with no ads sees no change in timing.
    */
   onTimeUpdated() {
     if (this.isAdsTrackerActive()) return;
@@ -527,6 +557,17 @@ export default class DashTracker extends nrvideo.VideoTracker {
     if (this.isAdsTrackerActive()) return;
 
     const payload = e || {};
+
+    // dash.js fires this PER MEDIA TYPE. Measured, an audio switch arrives
+    // alongside the video one (video 274000 / audio 130000 on VOD; video
+    // 334000 / audio 130000 on live). CONTENT_RENDITION_CHANGE describes the
+    // video rendition, and video-core derives `shift` and totalSwitchDowns
+    // from the bitrates, so publishing an audio switch tells a consumer the
+    // viewer's video dropped to 128 kbps when it never did.
+    //
+    // An event with no mediaType at all is still reported: dropping it would
+    // silently remove rendition reporting for any player that omits the field.
+    if (payload.mediaType && payload.mediaType !== 'video') return;
     const hasRepresentations =
       typeof payload.oldRepresentation !== 'undefined' ||
       typeof payload.newRepresentation !== 'undefined';

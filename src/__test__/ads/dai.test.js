@@ -1285,3 +1285,127 @@ describe('DaiTracker — never throws into the SDK dispatch', () => {
     expect(sm._listenerCount()).toBe(0);
   });
 });
+
+describe('DaiTracker — one error, two trackers, no attribute leak', () => {
+  // video-core's getAttributes() FILLS AND RETURNS the object it is handed
+  // (verified in 5.1.1: `getAttributes(e, t) { (e = e || {}).trackerName = ...;
+  // return e }`), and only DashTracker is registered with Core, so a DaiTracker
+  // send is funnelled through the parent's attribute collection.
+  //
+  // So handing the SAME payload object to the ad tracker and then to the
+  // content tracker publishes a CONTENT_ERROR carrying adId, adPartner,
+  // adPosition, adPlayhead and the rest. Spec 7.4 bans exactly this; the rule
+  // was applied to adBreakData but missed here.
+  //
+  // The earlier test cannot catch it: its mocks are plain jest.fn()s that do
+  // not mutate, and Jest records arguments BY REFERENCE. This one replays the
+  // mutation and snapshots what each tracker actually received.
+  function errorLeakFixture() {
+    let contentReceived = null;
+    const contentTracker = {
+      isLive: () => false,
+      sendError: jest.fn((att) => {
+        contentReceived = { ...att }; // snapshot before filling anything
+        att.isAd = false;
+        att.contentId = 'content-1';
+        return att;
+      }),
+    };
+    const { sm, tracker } = makeTracker({ contentTracker });
+    // Replay the ad tracker's own attribute collection.
+    tracker.sendError = jest.fn((att) => {
+      att.isAd = true;
+      att.adId = 'ad-1';
+      att.adPartner = 'google-dai';
+      att.adPosition = 'pre';
+      att.adPlayhead = 3200;
+      att.numberOfAds = 1;
+      return att;
+    });
+    return { sm, tracker, contentTracker, received: () => contentReceived };
+  }
+
+  it('does not leak ad attributes into the content error event', () => {
+    const { sm, received } = errorLeakFixture();
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    sm._emit(StreamEventType.ERROR, {
+      getStreamData: () => ({ errorMessage: 'Stream init failed' }),
+    });
+
+    expect(received()).toEqual({ errorMessage: 'Stream init failed' });
+    ['adId', 'adPartner', 'adPosition', 'adPlayhead', 'numberOfAds'].forEach((key) => {
+      expect(received()).not.toHaveProperty(key);
+    });
+  });
+
+  it('does not let the content tracker mutate the ad error event either', () => {
+    const { sm, tracker, contentTracker } = errorLeakFixture();
+    // Reverse direction: whatever the content tracker adds must not appear on
+    // the ad tracker's payload.
+    const adReceived = [];
+    tracker.sendError = jest.fn((att) => {
+      adReceived.push({ ...att });
+      return att;
+    });
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    sm._emit(StreamEventType.ERROR, {
+      getStreamData: () => ({ errorMessage: 'boom' }),
+    });
+
+    expect(adReceived[0]).toEqual({ errorMessage: 'boom' });
+    expect(contentTracker.sendError).toHaveBeenCalled();
+  });
+
+  it('still reports the error on both trackers', () => {
+    const { sm, tracker, contentTracker } = errorLeakFixture();
+
+    sm._emit(StreamEventType.AD_BREAK_STARTED, {});
+    sm._emit(StreamEventType.ERROR, {
+      getStreamData: () => ({ errorMessage: 'boom' }),
+    });
+
+    expect(tracker.sendError).toHaveBeenCalledTimes(1);
+    expect(contentTracker.sendError).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('DaiTracker — the tag must be a media element', () => {
+  // video-core's base does `tag = tag || player` (verified in 5.1.1), so a
+  // DaiTracker built without options.tag silently takes the StreamManager as
+  // its "video element". getStreamTimeMs() then reads undefined?.currentTime
+  // and returns 0 forever, which freezes the stitched clock: the cue-point arm
+  // of isAdPlaying() can never match, so CONTENT_START is not deferred past a
+  // VOD pre-roll. Nothing complains today.
+  it('falls back to the content tracker\'s tag when options.tag is omitted', () => {
+    const video = createMockTag(7);
+    const contentTracker = { tag: video, isLive: () => false };
+    const sm = createMockStreamManager();
+
+    const tracker = new DaiTracker(sm, { contentTracker });
+
+    expect(tracker.tag).toBe(video);
+    expect(tracker.getStreamTimeMs()).toBe(7000);
+  });
+
+  it('warns when no usable media element can be resolved', () => {
+    const sm = createMockStreamManager();
+
+    const tracker = new DaiTracker(sm, {});
+
+    expect(nrvideo.Log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('media element')
+    );
+    // Still inert rather than broken.
+    expect(tracker.getStreamTimeMs()).toBe(0);
+    expect(() => tracker.isAdPlaying()).not.toThrow();
+  });
+
+  it('does not warn when options.tag was supplied', () => {
+    makeTracker();
+    expect(nrvideo.Log.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('media element')
+    );
+  });
+});

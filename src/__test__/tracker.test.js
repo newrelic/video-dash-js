@@ -424,13 +424,13 @@ describe("Tracker Event Handlers", () => {
     expect(tracker.sendRequest).toHaveBeenCalled();
   });
 
-  // CONTENT_START deliberately no longer comes from onPlaying. It moved to
-  // playbackTimeUpdated so a pre-roll can defer it rather than lose it — see
-  // the "CONTENT_START" describe block below and spec 9.2.1.
-  it("should call sendResume but not sendStart on onPlaying", () => {
+  // Unchanged for a session with no ad break in progress. When one IS in
+  // progress both calls are suppressed and the start is recovered from
+  // playbackTimeUpdated instead — see the "CONTENT_START" blocks below.
+  it("should call sendResume and sendStart on onPlaying", () => {
     tracker.onPlaying();
     expect(tracker.sendResume).toHaveBeenCalled();
-    expect(tracker.sendStart).not.toHaveBeenCalled();
+    expect(tracker.sendStart).toHaveBeenCalled();
   });
 
   it("should call sendRenditionChanged on onAdaptation", () => {
@@ -488,13 +488,30 @@ describe("Tracker Event Handlers", () => {
 // undefined for both and reported oldBitrate: null, newBitrate: null.
 // ---------------------------------------------------------------------------
 describe("onAdaptation across dash.js majors", () => {
+  // Model ONE major at a time. A real dash.js 4 player does not have
+  // getRepresentationsByType and a real 5 does not have getBitrateInfoListFor,
+  // and a fixture carrying both lets a version-only branch pass a test that
+  // the real player would fail.
   function makeTracker(version, playerOverrides = {}) {
+    const isV4 = String(version || '').startsWith('4');
     const p = {
       on: jest.fn(),
       off: jest.fn(),
       getVersion: jest.fn().mockReturnValue(version),
-      getBitrateInfoListFor: jest.fn().mockReturnValue(videoBitrateList),
-      getRepresentationsByType: jest.fn().mockReturnValue(videoBitrateList),
+      ...(isV4
+        ? {
+            getQualityFor: jest.fn().mockReturnValue(2),
+            getBitrateInfoListFor: jest.fn().mockReturnValue(videoBitrateList),
+          }
+        : {
+            // v5 representations carry `bandwidth`, not `bitrate`.
+            getRepresentationsByType: jest
+              .fn()
+              .mockReturnValue(videoBitrateList.map((b) => ({ ...b, bandwidth: b.bitrate }))),
+            getCurrentRepresentationForType: jest
+              .fn()
+              .mockReturnValue({ bandwidth: 2142460, width: 1920, height: 1080 }),
+          }),
       ...playerOverrides,
     };
     const tracker = new DashTracker(p, {});
@@ -705,13 +722,15 @@ describe("canCloseContentTransition", () => {
 });
 
 describe("CONTENT_START", () => {
-  it("emits CONTENT_START from playbackTimeUpdated, not playbackPlaying", () => {
-    const tracker = guardedTracker(undefined);
+  it("emits CONTENT_START from playbackTimeUpdated when a break is in progress", () => {
+    const ads = fakeAdsTracker({ isAdPlaying: jest.fn(() => true) });
+    const tracker = guardedTracker(ads);
 
     tracker.onPlaying();
     expect(tracker.sendStart).not.toHaveBeenCalled();
-    expect(tracker.sendResume).toHaveBeenCalled();
+    expect(tracker.sendResume).not.toHaveBeenCalled();
 
+    ads.isAdPlaying.mockReturnValue(false);
     tracker.onTimeUpdated();
     expect(tracker.sendStart).toHaveBeenCalledTimes(1);
   });
@@ -1143,5 +1162,168 @@ describe("player getters before a source is attached", () => {
     expect(tracker.getDuration()).toBe(600);
     expect(tracker.isLive()).toBe(true);
     expect(tracker.getSrc()).toBe("https://example.test/s.mpd");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Review findings, fixed in one pass
+// ---------------------------------------------------------------------------
+describe("onAdaptation media type", () => {
+  // MEASURED: dash.js fires qualityChangeRendered PER MEDIA TYPE. The VOD run
+  // recorded video 274000 and audio 130000 at the same instant; the live run
+  // recorded video 334000 and audio 130000.
+  //
+  // Before the v5 fix an audio event resolved an audio index against the VIDEO
+  // list and reported garbage or null — wrong but inert. Reading bandwidth
+  // straight off the representation made it worse: the audio bitrate now
+  // arrives as a real, plausible CONTENT_RENDITION_CHANGE, and video-core
+  // derives `shift` and totalSwitchDowns from it. A consumer reads "the
+  // viewer's video dropped to 128 kbps", which never happened.
+  function tracker5() {
+    const p = {
+      on: jest.fn(),
+      off: jest.fn(),
+      getVersion: jest.fn().mockReturnValue("5.3.0"),
+      getRepresentationsByType: jest.fn().mockReturnValue(videoBitrateList),
+    };
+    const t = new DashTracker(p, {});
+    t.sendRenditionChanged = jest.fn();
+    return t;
+  }
+
+  it("ignores an audio rendition change on dash.js 5", () => {
+    const tracker = tracker5();
+
+    tracker.onAdaptation({
+      mediaType: "audio",
+      oldRepresentation: { bandwidth: 130000 },
+      newRepresentation: { bandwidth: 128981 },
+    });
+
+    expect(tracker.sendRenditionChanged).not.toHaveBeenCalled();
+  });
+
+  it("ignores an audio rendition change on dash.js 4", () => {
+    const p = {
+      on: jest.fn(),
+      off: jest.fn(),
+      getVersion: jest.fn().mockReturnValue("4.7.4"),
+      getQualityFor: jest.fn().mockReturnValue(2),
+      getBitrateInfoListFor: jest.fn().mockReturnValue(videoBitrateList),
+    };
+    const tracker = new DashTracker(p, {});
+    tracker.sendRenditionChanged = jest.fn();
+
+    tracker.onAdaptation({ mediaType: "audio", oldQuality: 0, newQuality: 1 });
+
+    expect(tracker.sendRenditionChanged).not.toHaveBeenCalled();
+  });
+
+  it("still reports a video rendition change", () => {
+    const tracker = tracker5();
+    tracker.onAdaptation({
+      mediaType: "video",
+      oldRepresentation: { bandwidth: 274000 },
+      newRepresentation: { bandwidth: 2142460 },
+    });
+    expect(tracker.sendRenditionChanged).toHaveBeenCalledWith({
+      oldBitrate: 274000,
+      newBitrate: 2142460,
+    });
+  });
+
+  // An event with no mediaType at all must not be dropped: that is what the
+  // pre-existing tests send, and dropping it would silently remove rendition
+  // reporting for any player that omits the field.
+  it("still reports a rendition change when mediaType is absent", () => {
+    const tracker = tracker5();
+    tracker.onAdaptation({
+      oldRepresentation: { bandwidth: 274000 },
+      newRepresentation: { bandwidth: 2142460 },
+    });
+    expect(tracker.sendRenditionChanged).toHaveBeenCalled();
+  });
+});
+
+describe("CONTENT_START timing for customers with no ads", () => {
+  // startupTime is fixed at CONTENT_START (timeSinceRequested - totalAdTime).
+  // Moving the start unconditionally to playbackTimeUpdated would delay it by
+  // up to one timeupdate interval (~250ms in Chrome) for EVERY existing DASH
+  // customer, including those who never show an ad and get no benefit from the
+  // move. The same blast-radius argument that deferred the getDuration() unit
+  // fix applies here, so the old timing is preserved when there is no ads
+  // tracker and the deferral applies only when one is attached.
+  it("reports CONTENT_START from playbackPlaying when no ads tracker is attached", () => {
+    const tracker = guardedTracker(undefined);
+
+    tracker.onPlaying();
+
+    expect(tracker.sendStart).toHaveBeenCalledTimes(1);
+    expect(tracker.sendResume).toHaveBeenCalledTimes(1);
+  });
+
+  it("still defers CONTENT_START past a pre-roll when an ads tracker is attached", () => {
+    const ads = fakeAdsTracker({ isAdPlaying: jest.fn(() => true) });
+    const tracker = guardedTracker(ads);
+
+    tracker.onPlaying();
+    expect(tracker.sendStart).not.toHaveBeenCalled();
+
+    ads.isAdPlaying.mockReturnValue(false);
+    tracker.onTimeUpdated();
+    expect(tracker.sendStart).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("quality APIs feature-detect, never the version alone", () => {
+  // Global Constraints: "Version-sensitive code branches on majorVersion >= 5
+  // AND a typeof feature-check — never the version alone."
+  //
+  // onAdaptation already did. These four did not, so the symptom Review Focus 1
+  // actually names — a dash.js 5 player silently reporting null quality — still
+  // occurred. 'v5.3.0' is the nastier case: parseInt('v5') is NaN, and
+  // versionString is truthy so even the console.error does not fire.
+  function v5PlayerWith(version) {
+    return {
+      on: jest.fn(),
+      off: jest.fn(),
+      getVersion: jest.fn().mockReturnValue(version),
+      // A REAL dash.js 5 player: the v4 APIs simply do not exist.
+      getCurrentRepresentationForType: jest.fn().mockReturnValue({
+        bandwidth: 2142460, width: 1920, height: 1080,
+      }),
+      getRepresentationsByType: jest.fn((type) =>
+        type === "video" ? [{ bandwidth: 2142460 }] : [{ bandwidth: 130000 }]
+      ),
+    };
+  }
+
+  it.each([
+    ["an unparseable 'v5.3.0'", "v5.3.0"],
+    ["no version at all", undefined],
+    ["an empty string", ""],
+  ])("reports real bitrates on a v5 player reporting %s", (_label, version) => {
+    const tracker = new DashTracker(v5PlayerWith(version), {});
+
+    expect(tracker.getBitrate()).toBe(2142460);
+    expect(tracker.getRenditionWidth()).toBe(1920);
+    expect(tracker.getRenditionHeight()).toBe(1080);
+    expect(tracker.getManifestBitrate()).toBe(2142460 + 130000);
+    expect(tracker.getBitrateByQualityIndex("video", 0)).toBe(2142460);
+  });
+
+  it("still uses the v4 APIs on a real dash.js 4 player", () => {
+    const p = {
+      on: jest.fn(),
+      off: jest.fn(),
+      getVersion: jest.fn().mockReturnValue("4.7.4"),
+      getQualityFor: jest.fn().mockReturnValue(2),
+      getBitrateInfoListFor: jest.fn().mockReturnValue(videoBitrateList),
+    };
+    const tracker = new DashTracker(p, {});
+
+    expect(tracker.getBitrate()).toBe(987654);
+    expect(tracker.getBitrateByQualityIndex("video", 1)).toBe(512345);
+    expect(p.getQualityFor).toHaveBeenCalled();
   });
 });

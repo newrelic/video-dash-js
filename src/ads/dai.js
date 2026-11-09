@@ -27,6 +27,24 @@ export default class DaiTracker extends nrvideo.VideoTracker {
     this.adBreakFromPeriod = false;
     this.streamData = null;
     this.cuePoints = [];
+
+    // video-core's base does `tag = tag || player`, so without options.tag the
+    // "video element" silently becomes the StreamManager. getStreamTimeMs()
+    // then reads `undefined?.currentTime` and returns 0 forever, which freezes
+    // the stitched clock: the cue-point arm of isAdPlaying() can never match,
+    // so CONTENT_START is not deferred past a VOD pre-roll — and nothing
+    // reports a problem.
+    if (this.tag === streamManager) {
+      const inherited = this.contentTracker?.tag;
+      if (inherited && typeof inherited.currentTime === 'number') {
+        this.tag = inherited;
+      } else {
+        this.tag = null;
+        nrvideo.Log.warn(
+          'DaiTracker: no media element available — pass options.tag (or a contentTracker that has one), or the ad playhead and cue point detection cannot work'
+        );
+      }
+    }
   }
 
   /**
@@ -166,13 +184,19 @@ export default class DaiTracker extends nrvideo.VideoTracker {
     const errorData = this.extractErrorData(event);
     const contentTracker = this.parentTracker ?? this.contentTracker;
 
-    if (this.adBreakData) this.sendError(errorData);
+    // Each send gets its OWN copy. video-core's getAttributes() fills and
+    // returns the object it is handed, so passing one payload to both trackers
+    // would publish a CONTENT_ERROR carrying this tracker's adId, adPartner,
+    // adPosition and adPlayhead — the same rule that keeps adBreakData out of
+    // adBreakAttributes() (spec 7.4), applied to a payload shared across two
+    // trackers rather than to internal state.
+    if (this.adBreakData) this.sendError({ ...errorData });
 
     if (contentTracker?.sendError) {
-      contentTracker.sendError(errorData);
+      contentTracker.sendError({ ...errorData });
     } else if (!this.adBreakData) {
       // Nothing else to report on — better an ad error than a lost error.
-      this.sendError(errorData);
+      this.sendError({ ...errorData });
     }
   }
 
