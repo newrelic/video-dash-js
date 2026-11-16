@@ -135,6 +135,7 @@ An Attribute is a piece of data associated with an event. Attributes provide add
 | adIsMuted                | True if the video is currently muted.                                                                                                              |
 | adFps                    | Current FPS (Frames per second).                                                                                                                   |
 | adQuartile               | Quartile of the ad. 0 before first, 1 after first quartile, 2 after midpoint, 3 after third quartile, 4 when completed.                            |
+| adSkipped                | number. `1` on the `AD_END` of an ad the viewer skipped; absent otherwise (web never sends 0). Google IMA DAI sends it; the mobile agents send 0/1. |
 | adPosition               | Where the ad **break** sits in the content: `'pre'`, `'mid'` or `'post'`. Constant for every ad in one pod, and never a number. See the DAI note below. |
 | adCreativeId             | The creative ID of the ad.                                                                                                                         |
 | adPartner                | The ad partner, e.g., ima, freewheel.                                                                                                              |
@@ -194,6 +195,7 @@ completion from `AD_END` or the third quartile instead.
 
 **`adCount`** is the pod size, from `getAdPodInfo().getTotalAds()`.
 **`adPartner`** is always `google-dai`.
+**`adQuartile`** (1, 2, 3 on `AD_QUARTILE`) and **`adSkipped`** (`1` on a skipped `AD_END`) use the same names as the iOS and Android agents.
 **`errorMessage`** on a DAI stream error has its query string stripped and its
 length capped: the SDK embeds the full ad request URL, whose query carries
 `ua`, `uach`, `sid` and, in real integrations, `ppid` and `cust_params`.

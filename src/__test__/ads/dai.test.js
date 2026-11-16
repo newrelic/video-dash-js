@@ -744,6 +744,28 @@ describe('DaiTracker — AD_PROGRESS is a cache, never an event', () => {
 });
 
 describe('DaiTracker — quartile parity with hls.js', () => {
+  it('sends adQuartile and adSkipped, never quartile or skipped', () => {
+    const { sm, tracker } = makeTracker();
+    tracker.sendAdQuartile = jest.fn();
+    tracker.sendEnd = jest.fn();
+
+    sm._emit(StreamEventType.STARTED, startedEvent());
+    sm._emit(StreamEventType.FIRST_QUARTILE, {});
+    sm._emit(StreamEventType.MIDPOINT, {});
+    sm._emit(StreamEventType.THIRD_QUARTILE, {});
+    sm._emit(StreamEventType.SKIPPED, {});
+    sm._emit(StreamEventType.STARTED, startedEvent({ adId: 'ad-2' }));
+    sm._emit(StreamEventType.COMPLETE, {});
+
+    const sent = [...tracker.sendAdQuartile.mock.calls, ...tracker.sendEnd.mock.calls].map(([a]) => a || {});
+    sent.forEach((att) => {
+      expect(att).not.toHaveProperty('quartile');
+      expect(att).not.toHaveProperty('skipped');
+    });
+    expect(tracker.sendEnd.mock.calls[0][0]).toEqual({ adSkipped: 1 });
+    expect(tracker.sendEnd.mock.calls[1][0] || {}).not.toHaveProperty('adSkipped');
+  });
+
   // Review Focus 4. The tracker does NOT de-duplicate: it reports whatever the
   // SDK reports, gated only on an ad being in flight. Double-forwarding is
   // prevented upstream by subscribing in one event mode (forwardDaiMetadata)
@@ -759,8 +781,8 @@ describe('DaiTracker — quartile parity with hls.js', () => {
     sm._emit(StreamEventType.FIRST_QUARTILE, {});
 
     expect(tracker.sendAdQuartile).toHaveBeenCalledTimes(2);
-    expect(tracker.sendAdQuartile).toHaveBeenNthCalledWith(1, { quartile: 1 });
-    expect(tracker.sendAdQuartile).toHaveBeenNthCalledWith(2, { quartile: 1 });
+    expect(tracker.sendAdQuartile).toHaveBeenNthCalledWith(1, { adQuartile: 1 });
+    expect(tracker.sendAdQuartile).toHaveBeenNthCalledWith(2, { adQuartile: 1 });
   });
 
   it('reports the three quartiles with their numbers', () => {
@@ -772,17 +794,17 @@ describe('DaiTracker — quartile parity with hls.js', () => {
     sm._emit(StreamEventType.MIDPOINT, {});
     sm._emit(StreamEventType.THIRD_QUARTILE, {});
 
-    expect(tracker.sendAdQuartile.mock.calls.map(([a]) => a.quartile)).toEqual([1, 2, 3]);
+    expect(tracker.sendAdQuartile.mock.calls.map(([a]) => a.adQuartile)).toEqual([1, 2, 3]);
   });
 
-  it('reports a skipped ad as an end with the skipped flag', () => {
+  it('reports a skipped ad as an end with adSkipped 1', () => {
     const { sm, tracker } = makeTracker();
     tracker.sendEnd = jest.fn();
 
     sm._emit(StreamEventType.STARTED, startedEvent());
     sm._emit(StreamEventType.SKIPPED, {});
 
-    expect(tracker.sendEnd).toHaveBeenCalledWith({ skipped: true });
+    expect(tracker.sendEnd).toHaveBeenCalledWith({ adSkipped: 1 });
     expect(tracker.getCurrentAd()).toBeNull();
   });
 
@@ -852,7 +874,7 @@ describe('DaiTracker — replayed video-core 5.1.1 gating', () => {
       state.isRequested = false; // goAdBreakEnd clears isRequested, NOT isStarted
       reported.push('AD_BREAK_END');
     };
-    tracker.sendAdQuartile = ({ quartile }) => reported.push(`AD_QUARTILE${quartile}`);
+    tracker.sendAdQuartile = ({ adQuartile }) => reported.push(`AD_QUARTILE${adQuartile}`);
 
     return { sm, tracker, reported };
   }
@@ -1280,7 +1302,7 @@ describe('DaiTracker — never throws into the SDK dispatch', () => {
     tracker.sendAdQuartile = jest.fn();
     sm._emit(StreamEventType.STARTED, startedEvent());
     sm._emit(StreamEventType.FIRST_QUARTILE, {});
-    expect(tracker.sendAdQuartile).toHaveBeenCalledWith({ quartile: 1 });
+    expect(tracker.sendAdQuartile).toHaveBeenCalledWith({ adQuartile: 1 });
   });
 
   it('still removes the wrapped listeners on unregisterListeners', () => {
