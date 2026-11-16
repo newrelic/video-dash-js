@@ -137,3 +137,29 @@ describe('VegaTracker', () => {
     });
   });
 });
+
+// VegaTracker extends DashTracker, so it inherits the DAI guard layer. ima3_dai
+// is browser-only, so adsTracker is always null here — but assert the guards are
+// inert so a future change cannot silently alter Vega (spec 13.3).
+describe("inherited DAI guard layer", () => {
+  it("inherits the guard layer inertly when no ads tracker is attached", () => {
+    const player = {
+      on: jest.fn(),
+      off: jest.fn(),
+      getVersion: jest.fn().mockReturnValue("5.3.0"),
+      time: jest.fn().mockReturnValue(5),
+    };
+    const tracker = new VegaTracker(player, {});
+    tracker.sendPause = jest.fn();
+    tracker.sendStart = jest.fn();
+
+    expect(tracker.isAdsTrackerActive()).toBe(false);
+    expect(tracker.canCloseContentTransition("isBuffering")).toBe(true);
+
+    tracker.onPause();
+    tracker.onTimeUpdated();
+
+    expect(tracker.sendPause).toHaveBeenCalled();
+    expect(tracker.sendStart).toHaveBeenCalled();
+  });
+});

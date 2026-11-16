@@ -26,6 +26,7 @@ The New Relic Dash.js Tracker provides comprehensive video analytics for applica
 - [Prerequisites](#prerequisites)
 - [Usage](#usage)
 - [Best Practices](#best-practices)
+- [Google IMA DAI (server-side ad insertion)](#google-ima-dai-server-side-ad-insertion)
 - [Configuration Options](#configuration-options)
 - [API Reference](#api-reference)
 - [Bitrate Metrics](#bitrate-metrics)
@@ -377,6 +378,123 @@ if (shouldEnableTracking(currentUser.id)) {
 | Expansion | 25% | 5-7 days | Validate across device types |
 | Majority | 50% | 1-2 weeks | Monitor at scale |
 | Full | 100% | Ongoing | Complete deployment |
+
+## Google IMA DAI (server-side ad insertion)
+
+Tracks Google IMA DAI ad breaks stitched into the DASH stream dash.js is
+playing, for **both VOD and live**, reporting them as `VideoAdAction` on the
+same New Relic view as the content.
+
+Load `ima3_dai.js` yourself before constructing the tracker — it is never
+bundled, and the tracker warns and stays inert if it is missing:
+
+```html
+<script src="https://imasdk.googleapis.com/js/sdkloader/ima3_dai.js"></script>
+```
+
+### Wiring
+
+```js
+import DashTracker, { DaiTracker, forwardDaiMetadata } from '@newrelic/video-dash';
+
+const player = dashjs.MediaPlayer().create();
+player.initialize(video, null, false);
+
+const tracker = new DashTracker(player, options);
+
+const streamManager = new google.ima.dai.api.StreamManager(video);
+
+const daiTracker = new DaiTracker(streamManager, {
+  tag: video,
+  contentTracker: tracker,
+});
+tracker.setAdsTracker(daiTracker);
+
+// Register unconditionally: REQUIRED for live, harmless for VOD.
+const stopForwarding = forwardDaiMetadata(player, streamManager);
+
+streamManager.addEventListener(
+  google.ima.dai.api.StreamEvent.Type.LOADED,
+  (e) => player.attachSource(e.getStreamData().url)
+);
+
+const request = new google.ima.dai.api.LiveStreamRequest();
+request.assetKey = 'your-asset-key';
+request.format = 'dash';            // DASH rather than the default HLS
+streamManager.requestStream(request);
+```
+
+Using a `<script>` tag instead of a bundler? The UMD build exports only the
+default, so reach the DAI pieces through the tracker:
+`DashTracker.DaiTracker` and `DashTracker.forwardDaiMetadata`. There is no
+`window.DaiTracker`.
+
+A runnable example is in [`samples/dai/index.html`](samples/dai/index.html).
+
+### `options.contentTracker` is not optional in practice
+
+Pass it. Under SSAI the stitched stream is decoded by the same dash.js
+instance during ads, so the ad events take their bitrate, rendition
+dimensions, live flag and player version from the content tracker. Without it
+those attributes report `null`.
+
+### ⚠️ Live streams report no ad events without forwarding
+
+Live DASH ad breaks are signalled by `<EventStream>` events in the MPD, and the
+IMA SDK only learns that a break started if those events are forwarded to it.
+Measured on Google's live test asset: with nothing forwarded the SDK reported
+`streamInitialized` and `loaded` and **no ad events at all** across 55 seconds;
+with forwarding, the same stream produced three full ad breaks.
+
+`forwardDaiMetadata(player, streamManager)` does this correctly and returns a
+function that removes the subscription. **Prefer it to hand-rolling the
+listener** — three things on that one line are silently wrong when got wrong,
+and nothing in the library can catch any of them:
+
+1. **Subscribe in exactly ONE event mode.** Registering both
+   `EVENT_MODE_ON_RECEIVE` and `EVENT_MODE_ON_START` hands the SDK every event
+   twice, which **doubles every `AD_QUARTILE`** reaching New Relic and silently
+   corrupts ad completion metrics. Measured: 126 events per mode, all 14
+   distinct event ids present in both, every quartile emitted twice.
+2. **The dash.js event payload is wrapped.** The handler receives
+   `{ event, type }`, so `event.messageData` is `undefined` and forwarding it
+   calls `processMetadata` with no data — which looks exactly like not
+   forwarding at all. The real payload is on `event.event`.
+3. **Use `calculatedPresentationTime`, not `presentationTimeDelta`**, which was
+   `null` on every event measured.
+
+If you must write it yourself:
+
+```js
+player.on('urn:google:dai:2018', (e) => {
+  const payload = e.event ?? e;
+  streamManager.processMetadata(
+    'urn:google:dai:2018',
+    payload.messageData,
+    payload.calculatedPresentationTime
+  );
+}, null, { mode: dashjs.MediaPlayer.events.EVENT_MODE_ON_RECEIVE });
+```
+
+### What to expect in the data
+
+`adPosition` is `'pre'`/`'mid'`/`'post'`, `adPartner` is `google-dai`, and
+`adPlayhead` is ad-relative. One consequence is worth knowing before you build
+a dashboard: `adPlayhead` tops out near **99.76%** of `adDuration` and never
+reaches it, so measure ad completion from `AD_END` or the third quartile rather
+than comparing the two. See [DATAMODEL.md](DATAMODEL.md) for where each
+attribute comes from.
+
+Content QoE stands down during a break: content pause, seek start, buffer start
+and rendition changes are suppressed while an ad is on screen, while a buffer or
+seek already open when the break began is still closed, so ad time is not billed
+to content. `CONTENT_START` is deferred until the first content frame after a
+pre-roll rather than reported during it.
+
+### Not supported
+
+Client-side ad insertion (CSAI/VAST), non-DAI IMA, other SSAI vendors, and Vega
+/ connected devices — `ima3_dai.js` is browser-only.
 
 ## Configuration Options
 

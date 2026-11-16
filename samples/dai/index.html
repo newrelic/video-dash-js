@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>New Relic dash.js + Google IMA DAI</title>
+
+    <!-- dash.js player. Pin a version in production; `latest` is used here so
+         the sample can be checked against both supported majors by swapping
+         this one URL to v4.7.4. -->
+    <script src="https://cdn.dashjs.org/latest/dash.all.min.js"></script>
+
+    <!-- Google IMA DAI SDK: provides google.ima.dai.api.*
+         Must load before the tracker is constructed. It is never bundled. -->
+    <script src="https://imasdk.googleapis.com/js/sdkloader/ima3_dai.js"></script>
+
+    <!-- New Relic DASH tracker (UMD: exposes DashTracker, with
+         DashTracker.DaiTracker and DashTracker.forwardDaiMetadata).
+         Two levels up, because this sample lives in its own directory. -->
+    <script src="../../dist/umd/newrelic-video-dash.min.js"></script>
+
+    <style>
+      body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
+      .container { max-width: 840px; margin: 0 auto; background: #fff; padding: 20px; border-radius: 8px; }
+      button { background: #007cba; color: #fff; border: 0; padding: 10px 20px; margin: 5px 5px 5px 0; border-radius: 4px; cursor: pointer; }
+      button:hover { background: #005a87; }
+      #status { margin-top: 15px; padding: 10px; background: #e7f3ff; border-left: 4px solid #007cba; border-radius: 4px; }
+      #log { margin-top: 20px; max-height: 300px; overflow-y: auto; background: #1e1e1e; color: #fff; padding: 15px; border-radius: 4px; font-family: monospace; font-size: 12px; }
+      #log div { padding: 2px 0; border-bottom: 1px solid #333; }
+      .t { color: #4caf50; }
+      .e { color: #ff9800; }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <h1>dash.js + Google IMA DAI</h1>
+
+      <video id="video" controls width="800" height="450"></video>
+
+      <div>
+        <button onclick="loadVod()">Load VOD Stream</button>
+        <button onclick="loadLive()">Load Live Stream</button>
+        <button onclick="reset()">Reset</button>
+      </div>
+
+      <div id="status">Ready.</div>
+      <div id="log"></div>
+    </div>
+
+    <script>
+      /* Get the info object from the video agent onboarding. */
+      var options = {
+        info: {
+          beacon: 'xxxxxxxxxxx',
+          licenseKey: 'xxxxxxxxxxx',
+          applicationID: 'xxxxxxxxxx',
+        },
+      };
+
+      // GOOGLE'S PUBLIC DAI TEST ASSETS — not your account's identifiers.
+      // Replace all three with your own Ad Manager values. Google's HLS test
+      // assets have no DASH variant, so these differ from the hls.js sample's.
+      var VOD_CMS_ID = '2559737';
+      var VOD_VIDEO_ID = 'tos-dash';
+      var LIVE_ASSET_KEY = 'PSzZMzAkSXCmlJOWDmRj8Q';
+
+      var video = document.getElementById('video');
+      var player = null;
+      var dashTracker = null;
+      var daiTracker = null;
+      var streamManager = null;
+      var stopForwarding = null;
+
+      function status(msg) {
+        document.getElementById('status').textContent = msg;
+        log(msg);
+      }
+
+      function log(msg, cls) {
+        var line = document.createElement('div');
+        line.innerHTML =
+          '<span class="t">' + new Date().toLocaleTimeString() + '</span> ' +
+          '<span class="' + (cls || '') + '">' + msg + '</span>';
+        var el = document.getElementById('log');
+        el.appendChild(line);
+        el.scrollTop = el.scrollHeight;
+      }
+
+      function setup() {
+        reset();
+
+        player = dashjs.MediaPlayer().create();
+        // autoPlay false: the stitched MPD is attached later, once DAI hands us
+        // its URL.
+        player.initialize(video, null, false);
+
+        dashTracker = new DashTracker(player, options);
+
+        streamManager = new google.ima.dai.api.StreamManager(video);
+
+        // DaiTracker rides on the content tracker's session: setAdsTracker sets
+        // isAd()/parentTracker so these events land as VideoAdAction under the
+        // same viewId as the content events.
+        //
+        // contentTracker is what gives ad events their bitrate, rendition,
+        // live flag and the real dash.js version — under SSAI the player
+        // rendering the ad IS dash.js.
+        daiTracker = new DashTracker.DaiTracker(streamManager, {
+          tag: video,
+          contentTracker: dashTracker,
+        });
+        dashTracker.setAdsTracker(daiTracker);
+
+        // REQUIRED for live streams, harmless for VOD, so register it
+        // unconditionally and keep one snippet rather than two.
+        //
+        // Live DASH ad breaks are signalled by <EventStream> events in the MPD,
+        // and the SDK only learns a break started if those are forwarded to it.
+        // Without this, a live stream reports NO ad events at all — measured,
+        // the same stream produced streamInitialized and loaded and nothing
+        // else. On VOD the cue point list carries the breaks.
+        //
+        // Use this helper rather than hand-rolling player.on(...): it
+        // subscribes in exactly ONE event mode (registering both doubles every
+        // quartile reaching New Relic) and it unwraps the dash.js event
+        // payload, which is nested under `.event`.
+        stopForwarding = DashTracker.forwardDaiMetadata(player, streamManager);
+
+        // The app owns loading the stitched manifest into dash.js.
+        streamManager.addEventListener(
+          google.ima.dai.api.StreamEvent.Type.LOADED,
+          function (e) {
+            var url = e.getStreamData().url;
+            log('LOADED — stitched manifest received', 'e');
+            player.attachSource(url);
+          }
+        );
+
+        streamManager.addEventListener(
+          google.ima.dai.api.StreamEvent.Type.ERROR,
+          function (e) {
+            var data = e.getStreamData();
+            status('DAI stream error: ' + ((data && data.errorMessage) || 'unknown'));
+          }
+        );
+
+        // Mirror the ad events the tracker reports, so the page shows what New
+        // Relic is being told. AD_PROGRESS is deliberately not listed: it fires
+        // about four times a second and the tracker caches it without sending
+        // anything.
+        [
+          'AD_BREAK_STARTED', 'AD_BREAK_ENDED', 'AD_PERIOD_STARTED',
+          'AD_PERIOD_ENDED', 'STARTED', 'FIRST_QUARTILE', 'MIDPOINT',
+          'THIRD_QUARTILE', 'COMPLETE', 'SKIPPED', 'CUEPOINTS_CHANGED',
+        ].forEach(function (name) {
+          var type = google.ima.dai.api.StreamEvent.Type[name];
+          if (!type) return;
+          streamManager.addEventListener(type, function () {
+            log('DAI ' + name, 'e');
+          });
+        });
+      }
+
+      function loadVod() {
+        setup();
+        var req = new google.ima.dai.api.VODStreamRequest();
+        req.contentSourceId = VOD_CMS_ID;
+        req.videoId = VOD_VIDEO_ID;
+        // DASH rather than the default HLS. Both request types carry `format`.
+        req.format = 'dash';
+        streamManager.requestStream(req);
+        status('Requesting VOD stream with DAI...');
+      }
+
+      function loadLive() {
+        setup();
+        var req = new google.ima.dai.api.LiveStreamRequest();
+        req.assetKey = LIVE_ASSET_KEY;
+        req.format = 'dash';
+        streamManager.requestStream(req);
+        status('Requesting Live stream with DAI...');
+      }
+
+      function reset() {
+        if (stopForwarding) {
+          stopForwarding();
+          stopForwarding = null;
+        }
+        if (daiTracker) {
+          daiTracker.unregisterListeners();
+          daiTracker = null;
+        }
+        if (dashTracker) {
+          dashTracker.dispose();
+          dashTracker = null;
+        }
+        if (player) {
+          player.reset();
+          player = null;
+        }
+        streamManager = null;
+      }
+    </script>
+  </body>
+</html>
